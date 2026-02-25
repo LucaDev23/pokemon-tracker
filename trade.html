@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Tauschbörse</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .trade-sections {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;
+    }
+
+    .offer-card {
+      background: white; border: 2px solid var(--light-green);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .offer-card.my-card { border-color: var(--mid-green); }
+    .offer-card img { width: 56px; height: 56px; image-rendering: pixelated; }
+    .offer-info { flex: 1; }
+    .offer-name { font-weight: 800; font-size: 15px; }
+    .offer-type {
+      display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 800;
+      margin-top: 3px;
+    }
+    .offer-type.offer  { background: var(--light-green); color: var(--dark-green); }
+    .offer-type.wanted { background: var(--fr-bg);        color: var(--fr-dark);    }
+    .offer-by { font-size: 11px; color: var(--text-mid); margin-top: 2px; }
+
+    .add-form { margin-bottom: 0; }
+    .type-toggle {
+      display: flex; gap: 8px; margin-bottom: 16px;
+    }
+    .type-btn {
+      flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 2px solid #ddd;
+      font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s; background: white;
+    }
+    .type-btn.active.offer  { border-color: var(--dark-green); background: var(--light-green); color: var(--dark-green); }
+    .type-btn.active.wanted { border-color: var(--fr-primary);  background: var(--fr-bg);       color: var(--fr-dark); }
+
+    .empty-state {
+      text-align: center; padding: 32px; color: var(--text-mid);
+      font-size: 14px; font-style: italic;
+    }
+    .empty-state .big { font-size: 36px; display: block; margin-bottom: 8px; }
+
+    @media(max-width:768px) { .trade-sections { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="pokeball-loader"></div></div>
+<div id="toast-container"></div>
+<nav class="navbar" id="main-nav"></nav>
+
+<div class="page-wrapper">
+  <div class="page-title"><span class="icon">🔄</span> TAUSCHBÖRSE</div>
+
+  <div class="trade-sections">
+    <!-- Angebot hinzufügen -->
+    <div class="card">
+      <div class="card-title">➕ EINTRAG HINZUFÜGEN</div>
+
+      <div class="type-toggle">
+        <button class="type-btn offer active" id="btn-offer"  onclick="setTradeType('offer')">✅ Ich biete an</button>
+        <button class="type-btn wanted"       id="btn-wanted" onclick="setTradeType('wanted')">🔍 Ich suche</button>
+      </div>
+
+      <div class="form-group add-form">
+        <label class="form-label">Pokémon</label>
+        <select id="trade-pokemon" class="form-control">
+          <option value="">– Pokémon wählen –</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notiz (optional)</label>
+        <input type="text" id="trade-note" class="form-control" placeholder="z.B. Level 25, hat Attacke X">
+      </div>
+
+      <button class="btn btn-primary" onclick="addTrade()">🔄 Eintrag speichern</button>
+    </div>
+
+    <!-- Info -->
+    <div class="card" style="background:var(--light-green);border-color:var(--mid-green)">
+      <div class="card-title">ℹ️ SO FUNKTIONIERT'S</div>
+      <p style="font-size:14px;line-height:1.8;color:var(--dark-green)">
+        Trag hier ein, welche Pokémon du <strong>anbieten</strong> oder <strong>suchen</strong> möchtest.
+        <br><br>
+        Ihr seht gegenseitig eure Einträge und könnt so einfach absprechen, wer was tauschen möchte.
+        <br><br>
+        Abgeschlossene Tausche kannst du einfach löschen.
+      </p>
+    </div>
+  </div>
+
+  <!-- Alle Einträge -->
+  <div class="grid-2">
+    <!-- Angebote -->
+    <div>
+      <div class="page-title" style="margin-bottom:16px"><span class="icon">✅</span> ANGEBOTE</div>
+      <div id="offers-list"><div class="empty-state"><span class="big">📦</span>Noch keine Angebote</div></div>
+    </div>
+
+    <!-- Gesuche -->
+    <div>
+      <div class="page-title" style="margin-bottom:16px"><span class="icon">🔍</span> GESUCHE</div>
+      <div id="wanted-list"><div class="empty-state"><span class="big">🔍</span>Noch keine Gesuche</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  let tradeType = 'offer';
+
+  requireAuth(async () => {
+    // Select befüllen
+    const sel = document.getElementById('trade-pokemon');
+    POKEMON_LIST.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = `#${p.id} ${p.name}`;
+      sel.appendChild(opt);
+    });
+    loadTrades();
+  });
+
+  function setTradeType(type) {
+    tradeType = type;
+    document.getElementById('btn-offer').classList.toggle('active', type === 'offer');
+    document.getElementById('btn-wanted').classList.toggle('active', type === 'wanted');
+  }
+
+  async function addTrade() {
+    const pokemonId = parseInt(document.getElementById('trade-pokemon').value);
+    if (!pokemonId) { showToast('Bitte ein Pokémon wählen!', true); return; }
+
+    const note = document.getElementById('trade-note').value.trim();
+    const pk   = POKEMON_LIST.find(p => p.id === pokemonId);
+
+    try {
+      await db.collection('trades').add({
+        uid: currentUser.uid,
+        email: currentUser.email,
+        pokemonId,
+        pokemonName: pk.name,
+        type: tradeType, // 'offer' or 'wanted'
+        note,
+        edition: currentUserData?.edition || '',
+        characterName: currentUserData?.characterName || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      document.getElementById('trade-pokemon').value = '';
+      document.getElementById('trade-note').value = '';
+      showToast('Eintrag gespeichert! 🔄');
+      loadTrades();
+    } catch(e) { showToast('Fehler: ' + e.message, true); }
+  }
+
+  async function loadTrades() {
+    const snap = await db.collection('trades').orderBy('createdAt', 'desc').get();
+    const offers  = [];
+    const wanteds = [];
+    snap.forEach(doc => {
+      const d = { ...doc.data(), id: doc.id };
+      if (d.type === 'offer') offers.push(d);
+      else wanteds.push(d);
+    });
+    renderTradeList('offers-list',  offers,  '📦 Noch keine Angebote');
+    renderTradeList('wanted-list',  wanteds, '🔍 Noch keine Gesuche');
+  }
+
+  function renderTradeList(containerId, items, emptyMsg) {
+    const el = document.getElementById(containerId);
+    if (items.length === 0) {
+      el.innerHTML = `<div class="empty-state"><span class="big">${emptyMsg.split(' ')[0]}</span>${emptyMsg.slice(2)}</div>`;
+      return;
+    }
+    el.innerHTML = '';
+    items.forEach(item => {
+      const isMe = item.uid === currentUser.uid;
+      const ed   = item.edition;
+      el.innerHTML += `
+        <div class="offer-card ${isMe ? 'my-card' : ''}">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${item.pokemonId}.png" alt="${item.pokemonName}">
+          <div class="offer-info">
+            <div class="offer-name">${item.pokemonName}</div>
+            <span class="offer-type ${item.type}">${item.type === 'offer' ? '✅ Angebot' : '🔍 Gesucht'}</span>
+            ${item.note ? `<div style="font-size:12px;color:var(--text-mid);margin-top:3px">📝 ${item.note}</div>` : ''}
+            <div class="offer-by">
+              von ${item.characterName}
+              <span class="edition-badge ${ed}" style="font-size:9px;padding:2px 6px">${ed === 'feuerrot' ? '🔴' : '🟢'} ${ed}</span>
+            </div>
+          </div>
+          ${isMe ? `<button class="btn btn-outline btn-sm" onclick="deleteTrade('${item.id}')">🗑️</button>` : ''}
+        </div>`;
+    });
+  }
+
+  async function deleteTrade(id) {
+    if (!confirm('Diesen Eintrag löschen?')) return;
+    await db.collection('trades').doc(id).delete();
+    showToast('Eintrag gelöscht.');
+    loadTrades();
+  }
+</script>
+</body>
+</html>

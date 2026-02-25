@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Einrichtung</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: linear-gradient(135deg, #F0FFF0 0%, #FFF0F0 100%); padding: 40px 20px; }
+
+    .setup-wrapper { max-width: 600px; margin: 0 auto; }
+
+    .setup-header {
+      text-align: center; margin-bottom: 36px;
+    }
+    .setup-header h1 {
+      font-family: var(--font-pixel);
+      font-size: 11px; color: var(--dark-green);
+      margin-bottom: 10px;
+    }
+    .setup-header p { color: var(--text-mid); font-size: 15px; }
+
+    .edition-selector {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      margin-bottom: 8px;
+    }
+    .edition-option {
+      border: 3px solid #ddd;
+      border-radius: var(--radius);
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+    .edition-option:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+    .edition-option.selected.feuerrot  { border-color: var(--fr-primary); background: var(--fr-bg); }
+    .edition-option.selected.blattgruen { border-color: var(--bg-primary); background: var(--bg-bg); }
+
+    .edition-option .big-icon { font-size: 48px; display: block; margin-bottom: 8px; }
+    .edition-option .ed-name {
+      font-family: var(--font-pixel); font-size: 9px;
+      color: var(--text-dark);
+    }
+    .edition-option.selected.feuerrot  .ed-name { color: var(--fr-dark); }
+    .edition-option.selected.blattgruen .ed-name { color: var(--bg-dark); }
+
+    .starter-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .starter-option {
+      border: 3px solid #ddd;
+      border-radius: var(--radius-sm);
+      padding: 16px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+    .starter-option:hover { border-color: var(--mid-green); }
+    .starter-option.selected { border-color: var(--dark-green); background: var(--light-green); }
+    .starter-option img { width: 80px; height: 80px; image-rendering: pixelated; }
+    .starter-option .starter-name { font-weight: 800; font-size: 14px; margin-top: 4px; }
+    .starter-option .starter-type {
+      font-size: 11px; color: var(--text-mid);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .btn-setup {
+      width: 100%;
+      background: linear-gradient(135deg, var(--dark-green), var(--mid-green));
+      color: white; padding: 16px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main); font-weight: 800; font-size: 16px;
+      border: none; cursor: pointer; transition: all 0.2s; margin-top: 8px;
+    }
+    .btn-setup:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(45,125,45,0.4); }
+    .btn-setup:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="pokeball-loader"></div>
+</div>
+<div id="toast-container"></div>
+
+<div class="setup-wrapper">
+  <div class="setup-header">
+    <h1>WILLKOMMEN, TRAINER!</h1>
+    <p>Richte deinen Trainer-Account ein, bevor du loslegst.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">⚙️ TRAINER-NAME</div>
+    <div class="form-group" style="margin:0">
+      <input type="text" id="charName" class="form-control"
+             placeholder="Dein Trainer-Name (z.B. Ash)" maxlength="20">
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">🎮 EDITION WÄHLEN</div>
+    <div class="edition-selector">
+      <div class="edition-option feuerrot" onclick="selectEdition('feuerrot', this)">
+        <span class="big-icon">🔴</span>
+        <div class="ed-name">FEUERROT</div>
+      </div>
+      <div class="edition-option blattgruen" onclick="selectEdition('blattgruen', this)">
+        <span class="big-icon">🟢</span>
+        <div class="ed-name">BLATTGRÜN</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">🌿 STARTER-POKÉMON</div>
+    <div class="starter-grid">
+      <div class="starter-option" onclick="selectStarter(1, this)">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png" alt="Bisasam">
+        <div class="starter-name">Bisasam</div>
+        <div class="starter-type">🌿 Pflanze</div>
+      </div>
+      <div class="starter-option" onclick="selectStarter(4, this)">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png" alt="Glumanda">
+        <div class="starter-name">Glumanda</div>
+        <div class="starter-type">🔥 Feuer</div>
+      </div>
+      <div class="starter-option" onclick="selectStarter(7, this)">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png" alt="Schiggy">
+        <div class="starter-name">Schiggy</div>
+        <div class="starter-type">💧 Wasser</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-setup" id="save-btn" onclick="saveSetup()" disabled>
+    ✦ Abenteuer beginnen! ✦
+  </button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  let selectedEdition = null;
+  let selectedStarterId = null;
+
+  initFirebase();
+  auth.onAuthStateChanged((user) => {
+    hideLoading();
+    if (!user) { window.location.href = 'index.html'; return; }
+    currentUser = user;
+    // Wenn schon eingerichtet, weiter
+    db.collection('players').doc(user.uid).get().then(snap => {
+      if (snap.exists) window.location.href = 'dashboard.html';
+    });
+  });
+
+  function selectEdition(val, el) {
+    selectedEdition = val;
+    document.querySelectorAll('.edition-option').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    checkReady();
+  }
+
+  function selectStarter(id, el) {
+    selectedStarterId = id;
+    document.querySelectorAll('.starter-option').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    checkReady();
+  }
+
+  function checkReady() {
+    const name = document.getElementById('charName').value.trim();
+    document.getElementById('save-btn').disabled = !(name && selectedEdition && selectedStarterId);
+  }
+
+  document.getElementById('charName').addEventListener('input', checkReady);
+
+  async function saveSetup() {
+    const name = document.getElementById('charName').value.trim();
+    if (!name || !selectedEdition || !selectedStarterId) return;
+
+    const starterName = POKEMON_LIST.find(p => p.id === selectedStarterId)?.name;
+
+    try {
+      await db.collection('players').doc(currentUser.uid).set({
+        uid: currentUser.uid,
+        email: currentUser.email,
+        characterName: name,
+        edition: selectedEdition,
+        starterId: selectedStarterId,
+        starterName: starterName,
+        playtimeMinutes: 0,
+        badges: 0,
+        pokedexSeen: [],
+        pokedexCaught: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      window.location.href = 'dashboard.html';
+    } catch (e) {
+      showToast('Fehler beim Speichern: ' + e.message, true);
+    }
+  }
+</script>
+</body>
+</html>

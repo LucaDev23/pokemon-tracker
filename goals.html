@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Ziele</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .private-notice {
+      background: linear-gradient(135deg, var(--light-green), #e0ffe0);
+      border: 2px solid var(--mid-green); border-radius: var(--radius);
+      padding: 16px 20px; margin-bottom: 24px;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 14px; font-weight: 700; color: var(--dark-green);
+    }
+    .private-notice .lock { font-size: 28px; }
+
+    .goal-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px; background: white; border: 2px solid var(--light-green);
+      border-radius: var(--radius-sm); margin-bottom: 10px; transition: all 0.2s;
+    }
+    .goal-item.done { background: var(--light-green); opacity: 0.7; }
+    .goal-item.done .goal-text { text-decoration: line-through; color: var(--text-mid); }
+
+    .goal-check {
+      width: 24px; height: 24px; flex-shrink: 0;
+      border: 2px solid var(--mid-green); border-radius: 6px;
+      background: white; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .goal-item.done .goal-check { background: var(--mid-green); color: white; }
+
+    .goal-text { flex: 1; font-size: 14px; font-weight: 600; padding-top: 2px; }
+    .goal-category {
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 2px 8px; border-radius: 10px; margin-top: 3px; display: inline-block;
+    }
+    .cat-catch   { background: var(--light-green); color: var(--dark-green); }
+    .cat-badge   { background: #FFF8E0; color: #7a6000; }
+    .cat-duel    { background: var(--fr-bg); color: var(--fr-dark); }
+    .cat-other   { background: #f0f0f0; color: #555; }
+
+    .goal-date { font-size: 11px; color: var(--text-mid); }
+    .goal-delete { color: #ccc; cursor: pointer; font-size: 18px; transition: color 0.2s; padding: 0 4px; }
+    .goal-delete:hover { color: var(--fr-primary); }
+
+    .add-goal-form { display: flex; flex-direction: column; gap: 12px; }
+    .add-row { display: flex; gap: 12px; }
+    .add-row input  { flex: 1; }
+    .add-row select { width: 160px; }
+
+    .filter-tabs {
+      display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 7px 16px; border-radius: 20px; border: 2px solid #ddd;
+      background: white; font-weight: 800; font-size: 12px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: var(--dark-green); color: white; border-color: var(--dark-green); }
+
+    .goals-count {
+      font-family: var(--font-pixel); font-size: 9px; color: var(--text-mid);
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="pokeball-loader"></div></div>
+<div id="toast-container"></div>
+<nav class="navbar" id="main-nav"></nav>
+
+<div class="page-wrapper">
+  <div class="page-title"><span class="icon">🎯</span> MEINE ZIELE</div>
+
+  <div class="private-notice">
+    <span class="lock">🔒</span>
+    <span>Deine Ziele sind <strong>privat</strong> – nur du kannst sie sehen. Dein Bruder hat keinen Zugriff darauf.</span>
+  </div>
+
+  <!-- Neues Ziel -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title">➕ NEUES ZIEL</div>
+    <div class="add-goal-form">
+      <div class="add-row">
+        <input type="text" id="goal-text" class="form-control" placeholder="z.B. Garados auf Level 50 trainieren" maxlength="200">
+        <select id="goal-category" class="form-control">
+          <option value="catch">🎣 Fangen</option>
+          <option value="badge">🏅 Orden</option>
+          <option value="duel">⚔️ Duell</option>
+          <option value="other">📌 Sonstiges</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="addGoal()">🎯 Ziel speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-tabs">
+    <button class="tab-btn active" id="tab-all"       onclick="setTab('all')">Alle</button>
+    <button class="tab-btn"        id="tab-open"      onclick="setTab('open')">Offen</button>
+    <button class="tab-btn"        id="tab-done"      onclick="setTab('done')">Erledigt</button>
+    <button class="tab-btn"        id="tab-catch"     onclick="setTab('catch')">🎣 Fangen</button>
+    <button class="tab-btn"        id="tab-badge"     onclick="setTab('badge')">🏅 Orden</button>
+    <button class="tab-btn"        id="tab-duel"      onclick="setTab('duel')">⚔️ Duelle</button>
+  </div>
+
+  <div class="goals-count" id="goals-count"></div>
+  <div id="goals-list"><div style="color:var(--text-mid)">Lade Ziele...</div></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  let allGoals = [];
+  let currentTab = 'all';
+
+  const CAT_LABELS = { catch: '🎣 Fangen', badge: '🏅 Orden', duel: '⚔️ Duell', other: '📌 Sonstiges' };
+  const CAT_CLASSES = { catch: 'cat-catch', badge: 'cat-badge', duel: 'cat-duel', other: 'cat-other' };
+
+  requireAuth(async () => {
+    loadGoals();
+  });
+
+  async function loadGoals() {
+    const snap = await db.collection('goals')
+      .where('uid', '==', currentUser.uid)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    allGoals = [];
+    snap.forEach(doc => allGoals.push({ ...doc.data(), id: doc.id }));
+    renderGoals();
+  }
+
+  function renderGoals() {
+    const list = document.getElementById('goals-list');
+    let filtered = allGoals.filter(g => {
+      if (currentTab === 'open')  return !g.done;
+      if (currentTab === 'done')  return g.done;
+      if (currentTab === 'catch') return g.category === 'catch';
+      if (currentTab === 'badge') return g.category === 'badge';
+      if (currentTab === 'duel')  return g.category === 'duel';
+      return true;
+    });
+
+    document.getElementById('goals-count').textContent =
+      `${filtered.length} ZIEL${filtered.length !== 1 ? 'E' : ''}`;
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-mid)">
+        <div style="font-size:48px;margin-bottom:12px">🎯</div>
+        <div>Noch keine Ziele in dieser Kategorie.</div>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    filtered.forEach(goal => {
+      const el = document.createElement('div');
+      el.className = 'goal-item' + (goal.done ? ' done' : '');
+      el.innerHTML = `
+        <div class="goal-check" onclick="toggleGoal('${goal.id}', ${goal.done})">
+          ${goal.done ? '✓' : ''}
+        </div>
+        <div style="flex:1">
+          <div class="goal-text">${escapeHtml(goal.text)}</div>
+          <span class="goal-category ${CAT_CLASSES[goal.category] || 'cat-other'}">
+            ${CAT_LABELS[goal.category] || goal.category}
+          </span>
+          <span class="goal-date" style="margin-left:8px">${formatDate(goal.createdAt)}</span>
+        </div>
+        <span class="goal-delete" onclick="deleteGoal('${goal.id}')">×</span>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  async function addGoal() {
+    const text = document.getElementById('goal-text').value.trim();
+    if (!text) { showToast('Bitte Ziel eingeben!', true); return; }
+    const category = document.getElementById('goal-category').value;
+
+    try {
+      await db.collection('goals').add({
+        uid: currentUser.uid,
+        text, category, done: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      document.getElementById('goal-text').value = '';
+      showToast('Ziel gespeichert! 🎯');
+      loadGoals();
+    } catch(e) { showToast('Fehler!', true); }
+  }
+
+  async function toggleGoal(id, currentDone) {
+    await db.collection('goals').doc(id).update({ done: !currentDone });
+    const goal = allGoals.find(g => g.id === id);
+    if (goal) goal.done = !currentDone;
+    renderGoals();
+  }
+
+  async function deleteGoal(id) {
+    if (!confirm('Dieses Ziel löschen?')) return;
+    await db.collection('goals').doc(id).delete();
+    allGoals = allGoals.filter(g => g.id !== id);
+    showToast('Ziel gelöscht.');
+    renderGoals();
+  }
+
+  function setTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    renderGoals();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

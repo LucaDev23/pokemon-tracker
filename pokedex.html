@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Pokédex</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .pokedex-controls {
+      display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .pokedex-controls input {
+      flex: 1; min-width: 200px;
+    }
+    .filter-btn {
+      padding: 8px 16px; border-radius: 20px; border: 2px solid var(--light-green);
+      background: white; font-weight: 700; font-size: 12px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn.active { background: var(--dark-green); color: white; border-color: var(--dark-green); }
+
+    .pokedex-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;
+    }
+
+    .pokemon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .poke-card {
+      background: white; border: 2px solid var(--light-green);
+      border-radius: var(--radius-sm); padding: 10px;
+      text-align: center; cursor: pointer; transition: all 0.15s;
+      position: relative; user-select: none;
+    }
+    .poke-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .poke-card.seen   { border-color: #FFB900; background: #FFFCE0; }
+    .poke-card.caught { border-color: var(--mid-green); background: var(--light-green); }
+
+    .poke-card img {
+      width: 64px; height: 64px;
+      image-rendering: pixelated;
+      filter: grayscale(1);
+      transition: filter 0.2s;
+    }
+    .poke-card.seen img, .poke-card.caught img { filter: grayscale(0); }
+
+    .poke-number { font-size: 9px; color: var(--text-mid); font-family: var(--font-pixel); }
+    .poke-name   { font-size: 11px; font-weight: 800; margin-top: 2px; }
+
+    .poke-status {
+      display: flex; justify-content: center; gap: 4px; margin-top: 4px;
+    }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 1.5px solid #ccc; background: white;
+    }
+    .status-dot.seen   { background: #FFB900; border-color: #cc9000; }
+    .status-dot.caught { background: var(--mid-green); border-color: var(--dark-green); }
+
+    .legend {
+      display: flex; gap: 20px; font-size: 12px; font-weight: 700; margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot  { width: 14px; height: 14px; border-radius: 50%; }
+
+    .context-tip {
+      background: var(--light-green); border-radius: var(--radius-sm); padding: 12px 16px;
+      font-size: 12px; font-weight: 700; color: var(--dark-green); margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="pokeball-loader"></div></div>
+<div id="toast-container"></div>
+<nav class="navbar" id="main-nav"></nav>
+
+<div class="page-wrapper">
+  <div class="page-title"><span class="icon">📖</span> POKÉDEX</div>
+
+  <!-- Meine Statistiken -->
+  <div class="pokedex-stats" id="pokedex-stats"></div>
+
+  <div class="context-tip">
+    💡 Einmal klicken = Gesehen (👁️) · Zweimal klicken = Gefangen (✅) · Dreimal klicken = Zurücksetzen
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:white;border:2px solid #ddd"></div> Unbekannt</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FFB900"></div> Gesehen 👁️</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--mid-green)"></div> Gefangen ✅</div>
+  </div>
+
+  <!-- Filter -->
+  <div class="pokedex-controls">
+    <input type="text" class="form-control" id="search-input" placeholder="🔍 Pokémon suchen..." oninput="filterPokemon()">
+    <button class="filter-btn active" id="filter-all"     onclick="setFilter('all')">Alle</button>
+    <button class="filter-btn"        id="filter-seen"    onclick="setFilter('seen')">Gesehen</button>
+    <button class="filter-btn"        id="filter-caught"  onclick="setFilter('caught')">Gefangen</button>
+    <button class="filter-btn"        id="filter-missing" onclick="setFilter('missing')">Fehlend</button>
+  </div>
+
+  <div class="pokemon-grid" id="pokemon-grid">
+    <div style="color:var(--text-mid)">Lade Pokédex...</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  let seenSet = new Set();
+  let caughtSet = new Set();
+  let currentFilter = 'all';
+
+  requireAuth(async (user, data) => {
+    seenSet   = new Set(data?.pokedexSeen   || []);
+    caughtSet = new Set(data?.pokedexCaught || []);
+    renderStats();
+    renderGrid();
+  });
+
+  function renderStats() {
+    const statsEl = document.getElementById('pokedex-stats');
+    statsEl.innerHTML = `
+      <div class="stat-box">
+        <span class="stat-number">${caughtSet.size}</span>
+        <div class="stat-label">✅ Gefangen</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-number">${seenSet.size}</span>
+        <div class="stat-label">👁️ Gesehen</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-number">${151 - seenSet.size - caughtSet.size}</span>
+        <div class="stat-label">❓ Fehlend</div>
+      </div>
+    `;
+  }
+
+  function renderGrid() {
+    const query  = document.getElementById('search-input').value.toLowerCase();
+    const grid   = document.getElementById('pokemon-grid');
+    grid.innerHTML = '';
+
+    let filtered = POKEMON_LIST.filter(p => {
+      const matchSearch = p.name.toLowerCase().includes(query) || String(p.id).includes(query);
+      if (!matchSearch) return false;
+      if (currentFilter === 'caught')  return caughtSet.has(p.id);
+      if (currentFilter === 'seen')    return seenSet.has(p.id) && !caughtSet.has(p.id);
+      if (currentFilter === 'missing') return !seenSet.has(p.id) && !caughtSet.has(p.id);
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<p style="color:var(--text-mid)">Keine Pokémon gefunden.</p>';
+      return;
+    }
+
+    filtered.forEach(p => {
+      const isCaught = caughtSet.has(p.id);
+      const isSeen   = seenSet.has(p.id);
+      const statusClass = isCaught ? 'caught' : isSeen ? 'seen' : '';
+
+      const card = document.createElement('div');
+      card.className = `poke-card ${statusClass}`;
+      card.innerHTML = `
+        <div class="poke-number">#${String(p.id).padStart(3,'0')}</div>
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" alt="${p.name}" loading="lazy">
+        <div class="poke-name">${p.name}</div>
+        <div class="poke-status">
+          <div class="status-dot ${isSeen || isCaught ? 'seen' : ''}"></div>
+          <div class="status-dot ${isCaught ? 'caught' : ''}"></div>
+        </div>
+      `;
+      card.onclick = () => toggleStatus(p.id, card);
+      grid.appendChild(card);
+    });
+  }
+
+  async function toggleStatus(id, card) {
+    const wasCaught = caughtSet.has(id);
+    const wasSeen   = seenSet.has(id);
+
+    if (!wasSeen && !wasCaught) {
+      // → Gesehen
+      seenSet.add(id);
+    } else if (wasSeen && !wasCaught) {
+      // → Gefangen
+      caughtSet.add(id);
+    } else {
+      // → Zurücksetzen
+      seenSet.delete(id);
+      caughtSet.delete(id);
+    }
+
+    await savePokedex();
+    renderStats();
+    renderGrid();
+  }
+
+  async function savePokedex() {
+    try {
+      await db.collection('players').doc(currentUser.uid).update({
+        pokedexSeen:   Array.from(seenSet),
+        pokedexCaught: Array.from(caughtSet)
+      });
+    } catch (e) {
+      showToast('Fehler beim Speichern!', true);
+    }
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('filter-' + f).classList.add('active');
+    renderGrid();
+  }
+
+  function filterPokemon() { renderGrid(); }
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Fortschritt</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .badge-selector {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-bottom: 8px;
+    }
+    .badge-tile {
+      border: 3px solid #ddd; border-radius: var(--radius-sm); padding: 14px 8px;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: white;
+    }
+    .badge-tile:hover { border-color: var(--mid-green); }
+    .badge-tile.earned { border-color: gold; background: #FFFBE0; }
+    .badge-tile .b-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+    .badge-tile .b-name { font-size: 11px; font-weight: 800; color: var(--text-dark); }
+    .badge-tile .b-gym  { font-size: 10px; color: var(--text-mid); }
+    .badge-tile.earned .b-name { color: #8B6914; }
+
+    .playime-input-row {
+      display: flex; gap: 12px; align-items: flex-end;
+    }
+    .playime-input-row .form-group { flex: 1; margin: 0; }
+
+    .progress-notes textarea {
+      min-height: 120px; resize: vertical;
+    }
+
+    .save-bar {
+      position: sticky; bottom: 0; background: white;
+      border-top: 2px solid var(--light-green);
+      padding: 16px 0; margin-top: 24px;
+      display: flex; gap: 12px;
+    }
+
+    .current-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="pokeball-loader"></div></div>
+<div id="toast-container"></div>
+<nav class="navbar" id="main-nav"></nav>
+
+<div class="page-wrapper">
+  <div class="page-title"><span class="icon">🗺️</span> SPIELFORTSCHRITT</div>
+
+  <!-- Aktuelle Stats -->
+  <div class="current-stats" id="current-stats"></div>
+
+  <!-- Orden -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">🏅 ARENA-ORDEN</div>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:16px">Klicke auf einen Orden, um ihn als erhalten zu markieren.</p>
+    <div class="badge-selector" id="badge-selector"></div>
+  </div>
+
+  <!-- Spielzeit -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">⏱️ SPIELZEIT EINTRAGEN</div>
+    <div class="playime-input-row">
+      <div class="form-group">
+        <label class="form-label">Stunden</label>
+        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Minuten</label>
+        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="0">
+      </div>
+      <button class="btn btn-primary" onclick="savePlaytime()" style="margin-bottom:18px">Speichern</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-mid)">
+      💡 Tipp: Die Zeit auf dem Spielstand-Bildschirm im Spiel ablesen und hier eintragen.
+    </p>
+  </div>
+
+  <!-- Notizen / Tagebuch -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">📝 SPIELNOTIZEN</div>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:12px">Halte deinen aktuellen Stand fest – nur du kannst das sehen.</p>
+    <div class="form-group progress-notes">
+      <label class="form-label">Wo bin ich gerade?</label>
+      <textarea id="notes-text" class="form-control" placeholder="z.B. Bin gerade im Safarizone, habe 5 Orden..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="saveNotes()">💾 Notizen speichern</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  const BADGES = [
+    {name:'Felsorden',    gym:'Pewter',    icon:'🪨'},
+    {name:'Kaskaden',     gym:'Cerulean',  icon:'💧'},
+    {name:'Donnerorden',  gym:'Vermilion', icon:'⚡'},
+    {name:'Regenbogen',   gym:'Celadon',   icon:'🌈'},
+    {name:'Sumpforden',   gym:'Fuchsia',   icon:'🌿'},
+    {name:'Marschen',     gym:'Saffron',   icon:'🔮'},
+    {name:'Vulkanorden',  gym:'Cinnabar',  icon:'🔥'},
+    {name:'Erdorden',     gym:'Viridian',  icon:'🌍'},
+  ];
+
+  let earnedBadges = 0;
+
+  requireAuth(async (user, data) => {
+    earnedBadges = data?.badges || 0;
+    renderStats(data);
+    renderBadges();
+    loadPlaytime(data);
+    loadNotes();
+  });
+
+  function renderStats(data) {
+    const el = document.getElementById('current-stats');
+    el.innerHTML = `
+      <div class="stat-box">
+        <span class="stat-number">${data?.badges || 0}/8</span>
+        <div class="stat-label">Orden erhalten</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-number">${formatPlaytime(data?.playtimeMinutes)}</span>
+        <div class="stat-label">Spielzeit</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-number">${(data?.pokedexCaught || []).length}</span>
+        <div class="stat-label">Gefangen</div>
+      </div>
+    `;
+  }
+
+  function renderBadges() {
+    const el = document.getElementById('badge-selector');
+    el.innerHTML = '';
+    BADGES.forEach((b, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'badge-tile' + (i < earnedBadges ? ' earned' : '');
+      tile.innerHTML = `
+        <span class="b-icon">${b.icon}</span>
+        <div class="b-name">${b.name}</div>
+        <div class="b-gym">${b.gym}</div>
+      `;
+      tile.onclick = () => toggleBadge(i);
+      el.appendChild(tile);
+    });
+  }
+
+  async function toggleBadge(index) {
+    // Wenn index < earnedBadges → man klickt auf einen bereits vergebenen
+    // Einfache Logik: earnedBadges = index+1 wenn noch nicht, sonst zurücksetzen
+    if (index + 1 === earnedBadges) {
+      earnedBadges = index; // letzten rückgängig
+    } else {
+      earnedBadges = index + 1;
+    }
+    try {
+      await db.collection('players').doc(currentUser.uid).update({ badges: earnedBadges });
+      renderBadges();
+      showToast(`${earnedBadges}/8 Orden gespeichert! 🏅`);
+    } catch(e) { showToast('Fehler!', true); }
+  }
+
+  function loadPlaytime(data) {
+    const total = data?.playtimeMinutes || 0;
+    document.getElementById('pt-hours').value   = Math.floor(total / 60);
+    document.getElementById('pt-minutes').value = total % 60;
+  }
+
+  async function savePlaytime() {
+    const h = parseInt(document.getElementById('pt-hours').value)   || 0;
+    const m = parseInt(document.getElementById('pt-minutes').value) || 0;
+    const total = h * 60 + m;
+    try {
+      await db.collection('players').doc(currentUser.uid).update({ playtimeMinutes: total });
+      showToast(`Spielzeit gespeichert: ${formatPlaytime(total)} Std. ⏱️`);
+    } catch(e) { showToast('Fehler!', true); }
+  }
+
+  async function loadNotes() {
+    try {
+      const snap = await db.collection('player_notes').doc(currentUser.uid).get();
+      if (snap.exists) {
+        document.getElementById('notes-text').value = snap.data().notes || '';
+      }
+    } catch(e) {}
+  }
+
+  async function saveNotes() {
+    const text = document.getElementById('notes-text').value;
+    try {
+      await db.collection('player_notes').doc(currentUser.uid).set({
+        uid: currentUser.uid,
+        notes: text,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('Notizen gespeichert! 📝');
+    } catch(e) { showToast('Fehler!', true); }
+  }
+</script>
+</body>
+</html>

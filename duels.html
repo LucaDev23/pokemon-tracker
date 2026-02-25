@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Duelle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .duel-form-grid {
+      display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: start;
+    }
+    .vs-divider {
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-pixel); font-size: 14px; color: var(--text-mid);
+      padding-top: 40px;
+    }
+
+    .pokemon-slots { display: flex; flex-direction: column; gap: 8px; }
+    .pokemon-slot {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .pokemon-slot select { flex: 1; }
+    .slot-status {
+      display: flex; gap: 4px;
+    }
+    .status-btn {
+      width: 32px; height: 32px; border-radius: var(--radius-sm);
+      border: 2px solid #ddd; background: white;
+      cursor: pointer; font-size: 14px; transition: all 0.15s;
+    }
+    .status-btn.alive  { border-color: var(--mid-green); background: var(--light-green); }
+    .status-btn.fainted { border-color: var(--fr-primary); background: var(--fr-bg); }
+
+    .side-header {
+      font-family: var(--font-pixel); font-size: 9px; margin-bottom: 12px;
+      padding: 8px 12px; border-radius: var(--radius-sm); text-align: center;
+    }
+    .side-header.feuerrot  { background: var(--fr-bg);  color: var(--fr-dark);  border: 2px solid var(--fr-primary); }
+    .side-header.blattgruen { background: var(--bg-bg); color: var(--bg-dark);  border: 2px solid var(--bg-primary); }
+
+    /* Duel history */
+    .duel-card {
+      background: white; border: 2px solid var(--light-green);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+    }
+    .duel-card-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    }
+    .duel-winner-badge {
+      padding: 4px 14px; border-radius: 20px;
+      font-weight: 800; font-size: 12px;
+    }
+    .duel-winner-badge.feuerrot  { background: var(--fr-bg);  color: var(--fr-dark);  border: 2px solid var(--fr-primary); }
+    .duel-winner-badge.blattgruen { background: var(--bg-bg); color: var(--bg-dark);  border: 2px solid var(--bg-primary); }
+    .duel-winner-badge.draw { background: #f5f5f5; color: #666; border: 2px solid #ccc; }
+
+    .teams-display {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .team-side { padding: 12px; border-radius: var(--radius-sm); }
+    .team-side.feuerrot  { background: var(--fr-bg); }
+    .team-side.blattgruen { background: var(--bg-bg); }
+    .team-side h4 { font-size: 11px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .poke-entry {
+      display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 4px;
+    }
+    .poke-entry img { width: 28px; height: 28px; image-rendering: pixelated; }
+    .poke-entry .fainted-badge { color: var(--fr-primary); font-size: 10px; }
+    .poke-entry .alive-badge   { color: var(--mid-green);   font-size: 10px; }
+
+    @media (max-width: 768px) {
+      .duel-form-grid { grid-template-columns: 1fr; }
+      .vs-divider { padding-top: 0; }
+      .teams-display { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="pokeball-loader"></div></div>
+<div id="toast-container"></div>
+<nav class="navbar" id="main-nav"></nav>
+
+<div class="page-wrapper">
+  <div class="page-title"><span class="icon">⚔️</span> DUELLE</div>
+
+  <!-- Neues Duell -->
+  <div class="card" style="margin-bottom:28px">
+    <div class="card-title">➕ NEUES DUELL ERFASSEN</div>
+
+    <div class="form-group">
+      <label class="form-label">Datum</label>
+      <input type="date" id="duel-date" class="form-control" style="max-width:220px">
+    </div>
+
+    <div class="duel-form-grid">
+      <!-- Feuerrot Seite -->
+      <div>
+        <div class="side-header feuerrot">🔴 FEUERROT</div>
+        <div class="pokemon-slots" id="slots-fr"></div>
+      </div>
+
+      <div class="vs-divider">VS</div>
+
+      <!-- Blattgrün Seite -->
+      <div>
+        <div class="side-header blattgruen">🟢 BLATTGRÜN</div>
+        <div class="pokemon-slots" id="slots-bg"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:2px solid var(--light-green)">
+      <button class="btn btn-primary" onclick="saveDuel()">⚔️ Duell speichern</button>
+      <span id="winner-preview" style="margin-left:16px;font-weight:800;font-size:13px"></span>
+    </div>
+  </div>
+
+  <!-- Duel History -->
+  <div class="page-title" style="margin-bottom:16px"><span class="icon">📜</span> BISHERIGE DUELLE</div>
+  <div id="duel-history">
+    <div style="color:var(--text-mid)">Lade...</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  const SLOT_COUNT = 3; // Pokémon pro Seite
+  let frSlots = [];
+  let bgSlots = [];
+
+  requireAuth(async () => {
+    // Heutiges Datum
+    document.getElementById('duel-date').value = new Date().toISOString().split('T')[0];
+    initSlots('fr');
+    initSlots('bg');
+    loadDuelHistory();
+  });
+
+  function initSlots(side) {
+    const container = document.getElementById(`slots-${side}`);
+    const arr = side === 'fr' ? frSlots : bgSlots;
+    container.innerHTML = '';
+    arr.length = 0;
+
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      const slot = { pokemonId: null, fainted: false };
+      arr.push(slot);
+
+      const row = document.createElement('div');
+      row.className = 'pokemon-slot';
+
+      const sel = document.createElement('select');
+      sel.className = 'form-control';
+      sel.innerHTML = `<option value="">– Pokémon wählen –</option>` +
+        POKEMON_LIST.map(p => `<option value="${p.id}">#${p.id} ${p.name}</option>`).join('');
+      sel.onchange = () => { slot.pokemonId = parseInt(sel.value) || null; updateWinner(); };
+
+      const aliveBtn = document.createElement('button');
+      aliveBtn.className = 'status-btn alive'; aliveBtn.textContent = '✅';
+      aliveBtn.title = 'Besiegt / KO';
+      aliveBtn.onclick = () => { slot.fainted = !slot.fainted; updateSlotUI(aliveBtn, faintBtn, slot); updateWinner(); };
+
+      const faintBtn = document.createElement('button');
+      faintBtn.className = 'status-btn'; faintBtn.textContent = '💀';
+      faintBtn.title = 'KO markieren';
+      faintBtn.onclick = () => { slot.fainted = !slot.fainted; updateSlotUI(aliveBtn, faintBtn, slot); updateWinner(); };
+
+      row.appendChild(sel);
+      row.appendChild(aliveBtn);
+      row.appendChild(faintBtn);
+      container.appendChild(row);
+    }
+  }
+
+  function updateSlotUI(aliveBtn, faintBtn, slot) {
+    aliveBtn.className = 'status-btn ' + (slot.fainted ? '' : 'alive');
+    faintBtn.className = 'status-btn ' + (slot.fainted ? 'fainted' : '');
+  }
+
+  function updateWinner() {
+    const frSurvivors = frSlots.filter(s => s.pokemonId && !s.fainted).length;
+    const bgSurvivors = bgSlots.filter(s => s.pokemonId && !s.fainted).length;
+    const el = document.getElementById('winner-preview');
+
+    if (frSurvivors === 0 && bgSurvivors === 0) { el.textContent = ''; return; }
+    if (frSurvivors > bgSurvivors) el.innerHTML = '🔴 <span style="color:var(--fr-primary)">Feuerrot gewinnt!</span>';
+    else if (bgSurvivors > frSurvivors) el.innerHTML = '🟢 <span style="color:var(--bg-primary)">Blattgrün gewinnt!</span>';
+    else el.innerHTML = '🤝 Unentschieden';
+  }
+
+  async function saveDuel() {
+    const date = document.getElementById('duel-date').value;
+    if (!date) { showToast('Bitte Datum eingeben!', true); return; }
+
+    const frTeam = frSlots.filter(s => s.pokemonId).map(s => ({ pokemonId: s.pokemonId, fainted: s.fainted }));
+    const bgTeam = bgSlots.filter(s => s.pokemonId).map(s => ({ pokemonId: s.pokemonId, fainted: s.fainted }));
+
+    if (frTeam.length === 0 || bgTeam.length === 0) {
+      showToast('Bitte für beide Seiten mindestens ein Pokémon eintragen!', true); return;
+    }
+
+    const frSurvivors = frTeam.filter(s => !s.fainted).length;
+    const bgSurvivors = bgTeam.filter(s => !s.fainted).length;
+    const winner = frSurvivors > bgSurvivors ? 'feuerrot' : bgSurvivors > frSurvivors ? 'blattgruen' : 'draw';
+
+    try {
+      await db.collection('duels').add({
+        date: firebase.firestore.Timestamp.fromDate(new Date(date)),
+        frTeam, bgTeam, winner,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('Duell gespeichert! ⚔️');
+      initSlots('fr'); initSlots('bg');
+      document.getElementById('winner-preview').textContent = '';
+      loadDuelHistory();
+    } catch(e) { showToast('Fehler: ' + e.message, true); }
+  }
+
+  async function loadDuelHistory() {
+    const snap = await db.collection('duels').orderBy('date', 'desc').limit(20).get();
+    const container = document.getElementById('duel-history');
+
+    if (snap.empty) {
+      container.innerHTML = '<p style="color:var(--text-mid)">Noch keine Duelle eingetragen.</p>';
+      return;
+    }
+    container.innerHTML = '';
+
+    snap.forEach(doc => {
+      const d = doc.data();
+      const frSurv = d.frTeam.filter(p => !p.fainted).length;
+      const bgSurv = d.bgTeam.filter(p => !p.fainted).length;
+      const winnerLabel = d.winner === 'feuerrot' ? '🔴 Feuerrot gewinnt' : d.winner === 'blattgruen' ? '🟢 Blattgrün gewinnt' : '🤝 Unentschieden';
+
+      const teamHtml = (team) => team.map(p => {
+        const pk = POKEMON_LIST.find(x => x.id === p.pokemonId);
+        return `<div class="poke-entry">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.pokemonId}.png">
+          <span>${pk?.name || '?'}</span>
+          <span class="${p.fainted ? 'fainted-badge' : 'alive-badge'}">${p.fainted ? '💀' : '✅'}</span>
+        </div>`;
+      }).join('');
+
+      container.innerHTML += `
+        <div class="duel-card">
+          <div class="duel-card-header">
+            <span style="font-family:var(--font-pixel);font-size:10px">⚔️ ${formatDate(d.date)}</span>
+            <div class="duel-winner-badge ${d.winner}">${winnerLabel}</div>
+            <span style="font-size:12px;color:var(--text-mid);margin-left:auto">
+              🔴 ${frSurv} Überlebende · 🟢 ${bgSurv} Überlebende
+            </span>
+            <button class="btn btn-outline btn-sm" onclick="deleteDuel('${doc.id}')">🗑️</button>
+          </div>
+          <div class="teams-display">
+            <div class="team-side feuerrot">
+              <h4>🔴 Feuerrot</h4>${teamHtml(d.frTeam)}
+            </div>
+            <div class="team-side blattgruen">
+              <h4>🟢 Blattgrün</h4>${teamHtml(d.bgTeam)}
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  async function deleteDuel(id) {
+    if (!confirm('Dieses Duell wirklich löschen?')) return;
+    await db.collection('duels').doc(id).delete();
+    showToast('Duell gelöscht.');
+    loadDuelHistory();
+  }
+</script>
+</body>
+</html>

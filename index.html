@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Tracker – Login</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #F0FFF0 0%, #FFF0F0 100%);
+    }
+
+    .login-wrapper {
+      width: 100%; max-width: 440px;
+      padding: 20px;
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .login-logo .balls {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .pokeball-icon {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 3px solid #333;
+      position: relative;
+      overflow: hidden;
+    }
+    .pokeball-icon.red  { background: linear-gradient(to bottom, #CC2200 50%, white 50%); }
+    .pokeball-icon.green { background: linear-gradient(to bottom, #1A7A2E 50%, white 50%); }
+    .pokeball-icon::before {
+      content:''; position:absolute; width:100%; height:3px;
+      background:#333; top:50%; transform:translateY(-50%);
+    }
+    .pokeball-icon::after {
+      content:''; position:absolute; width:14px; height:14px;
+      background:white; border:3px solid #333; border-radius:50%;
+      top:50%; left:50%; transform:translate(-50%,-50%);
+    }
+
+    .login-title {
+      font-family: var(--font-pixel);
+      font-size: 12px;
+      color: var(--dark-green);
+      text-align: center;
+      line-height: 1.8;
+    }
+    .login-subtitle {
+      text-align: center;
+      color: var(--text-mid);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 36px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+      border: 2px solid var(--light-green);
+    }
+
+    .login-card h2 {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--text-dark);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, var(--dark-green), var(--mid-green));
+      color: white;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-main); font-weight: 800; font-size: 15px;
+      border: none; cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(45,125,45,0.4); }
+
+    .error-msg {
+      background: var(--fr-bg);
+      border: 2px solid var(--fr-secondary);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: var(--fr-dark);
+      font-weight: 700; font-size: 13px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .edition-hint {
+      display: flex; gap: 12px; margin-top: 24px;
+    }
+    .edition-hint-box {
+      flex: 1; padding: 12px; border-radius: var(--radius-sm);
+      text-align: center; font-size: 12px; font-weight: 700;
+    }
+    .edition-hint-box.fr { background: var(--fr-bg); color: var(--fr-dark); border: 2px solid var(--fr-secondary); }
+    .edition-hint-box.bg { background: var(--bg-bg); color: var(--bg-dark); border: 2px solid var(--bg-secondary); }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="pokeball-loader"></div>
+  <p style="font-family:var(--font-pixel);font-size:9px;color:var(--dark-green)">Lade...</p>
+</div>
+
+<div class="login-wrapper">
+  <div class="login-logo">
+    <div class="balls">
+      <div class="pokeball-icon red"></div>
+      <div class="pokeball-icon green"></div>
+    </div>
+    <div class="login-title">POKÉMON TRACKER</div>
+    <div class="login-subtitle">Feuerrot & Blattgrün Edition</div>
+  </div>
+
+  <div class="login-card">
+    <h2>ANMELDEN</h2>
+
+    <div class="form-group">
+      <label class="form-label" for="email">E-Mail</label>
+      <input type="email" id="email" class="form-control" placeholder="deine@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="password">Passwort</label>
+      <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+    </div>
+
+    <button class="btn-login" onclick="doLogin()">✦ Spielen ✦</button>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="edition-hint">
+      <div class="edition-hint-box fr">🔴<br>Feuerrot</div>
+      <div class="edition-hint-box bg">🟢<br>Blattgrün</div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+<script>
+  // Schon eingeloggt? Dann direkt weiter
+  initFirebase();
+  auth.onAuthStateChanged((user) => {
+    hideLoading();
+    if (user) window.location.href = 'dashboard.html';
+  });
+
+  async function doLogin() {
+    const email = document.getElementById('email').value.trim();
+    const pass  = document.getElementById('password').value;
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display = 'none';
+
+    if (!email || !pass) {
+      errEl.textContent = 'Bitte E-Mail und Passwort eingeben.';
+      errEl.style.display = 'block'; return;
+    }
+
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      // onAuthStateChanged übernimmt die Weiterleitung
+    } catch (e) {
+      errEl.textContent = 'Falsche E-Mail oder falsches Passwort.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  // Enter-Taste
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+</script>
+</body>
+</html>
