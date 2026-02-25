@@ -24,23 +24,7 @@
     .badge-tile.next   .b-name { color:var(--dark-green); }
     .lock-overlay { position:absolute; top:6px; right:6px; font-size:12px; }
 
-    /* Spielzeit Einträge */
-    .playtime-entry-row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
-    .playtime-entry-row .form-group { flex:1; min-width:100px; margin:0; }
-    .playtime-entry-row .btn { margin-bottom:18px; flex-shrink:0; }
-
-    .playtime-log { margin-top:16px; }
-    .log-entry {
-      display:flex; align-items:center; gap:12px; padding:10px 14px;
-      background:var(--light-green); border-radius:var(--radius-sm); margin-bottom:7px;
-      font-size:13px;
-    }
-    .log-date  { font-weight:800; color:var(--dark-green); min-width:80px; }
-    .log-time  { font-family:var(--font-pixel); font-size:12px; color:var(--dark-green); }
-    .log-del   { margin-left:auto; color:#aaa; cursor:pointer; font-size:18px; transition:color 0.2s; }
-    .log-del:hover { color:var(--fr-primary); }
-
-    .current-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+    .current-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:24px; }
   </style>
 </head>
 <body>
@@ -63,33 +47,6 @@
       Du kannst nur den nächsten Orden freischalten. Orden müssen der Reihe nach geholt werden.
     </p>
     <div class="badge-selector" id="badge-selector"></div>
-  </div>
-
-  <!-- Spielzeit mit Datum -->
-  <div class="card" style="margin-bottom:20px">
-    <div class="card-title">⏱️ SPIELZEIT EINTRAGEN</div>
-    <p style="font-size:13px;color:var(--text-mid);margin-bottom:14px">
-      Trage für jeden Spieltag die <strong>aktuelle Gesamtspielzeit</strong> laut Spielstand ein.<br>
-      Das Diagramm zeigt dann deinen Verlauf der letzten 10 Tage.
-    </p>
-    <div class="playtime-entry-row">
-      <div class="form-group">
-        <label class="form-label">Datum</label>
-        <input type="date" id="pt-date" class="form-control">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Stunden</label>
-        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Minuten</label>
-        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="">
-      </div>
-      <button class="btn btn-primary" onclick="savePlaytime()">💾 Speichern</button>
-    </div>
-
-    <!-- Eingetragene Spielzeiten -->
-    <div class="playtime-log" id="playtime-log"></div>
   </div>
 
   <!-- Notizen -->
@@ -122,18 +79,12 @@
   ];
 
   let earnedBadges = 0;
-  let myEdition = '';
-  // Cache aller eigenen Spielzeit-Einträge (wird beim Laden befüllt)
-  let playtimeCache = [];
 
   requireAuth(async (user, data) => {
     earnedBadges = data?.badges || 0;
-    myEdition    = data?.edition || '';
     renderStats(data);
     renderBadges();
-    await loadPlaytimeLog(); // await damit Cache bereit ist
     loadNotes();
-    document.getElementById('pt-date').value = new Date().toISOString().split('T')[0];
   });
 
   function renderStats(data) {
@@ -141,10 +92,6 @@
       <div class="stat-box">
         <span class="stat-number">${data?.badges||0}/8</span>
         <div class="stat-label">Orden erhalten</div>
-      </div>
-      <div class="stat-box">
-        <span class="stat-number">${formatPlaytime(data?.playtimeMinutes)}</span>
-        <div class="stat-label">Letzte Spielzeit</div>
       </div>
       <div class="stat-box">
         <span class="stat-number">${(data?.pokedexCaught||[]).length}</span>
@@ -195,94 +142,6 @@
 
   async function saveBadges() {
     await db.collection('players').doc(currentUser.uid).update({ badges: earnedBadges });
-  }
-
-  async function savePlaytime() {
-    const date = document.getElementById('pt-date').value;
-    const h    = parseInt(document.getElementById('pt-hours').value)   || 0;
-    const m    = parseInt(document.getElementById('pt-minutes').value) || 0;
-
-    if (!date) { showToast('Bitte Datum eingeben!', true); return; }
-    const total = h * 60 + m;
-    if (total === 0) { showToast('Bitte Spielzeit (Stunden/Minuten) eingeben!', true); return; }
-
-    // ✅ FIX: Vorher-Prüfung komplett clientseitig aus dem Cache
-    // Alle Einträge vor dem gewählten Datum aus dem Cache holen
-    const earlier = playtimeCache
-      .filter(e => e.date < date)
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    if (earlier.length > 0) {
-      const prevMinutes = earlier[0].minutes;
-      if (total < prevMinutes) {
-        showToast(
-          `⚠️ Die Spielzeit (${formatPlaytime(total)}) ist kleiner als der vorherige Eintrag (${formatPlaytime(prevMinutes)}). Bitte die aktuelle Gesamtspielzeit vom Spielstand eingeben.`,
-          true
-        );
-        return;
-      }
-    }
-
-    try {
-      await db.collection('playtime_log').doc(`${currentUser.uid}_${date}`).set({
-        uid:       currentUser.uid,
-        edition:   myEdition,
-        date,
-        minutes:   total,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      await db.collection('players').doc(currentUser.uid).update({ playtimeMinutes: total });
-      currentUserData.playtimeMinutes = total;
-
-      showToast(`Spielzeit gespeichert: ${formatPlaytime(total)} Std. ⏱️`);
-      await loadPlaytimeLog(); // Cache neu laden
-    } catch(e) {
-      showToast('Fehler: ' + e.message, true);
-    }
-  }
-
-  async function loadPlaytimeLog() {
-    const el = document.getElementById('playtime-log');
-    el.innerHTML = '<div style="color:var(--text-mid);font-size:13px">Lade...</div>';
-    try {
-      // Einfache Query ohne zusammengesetzten Index – nur nach uid filtern
-      const snap = await db.collection('playtime_log')
-        .where('uid', '==', currentUser.uid)
-        .get();
-
-      playtimeCache = []; // Cache leeren
-      snap.forEach(doc => playtimeCache.push({ id: doc.id, ...doc.data() }));
-      // Clientseitig sortieren
-      playtimeCache.sort((a, b) => b.date.localeCompare(a.date));
-
-      if (playtimeCache.length === 0) {
-        el.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Einträge. Trage oben deine erste Spielzeit ein!</p>';
-        return;
-      }
-
-      el.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Deine Einträge (neueste zuerst)</div>';
-      playtimeCache.slice(0, 15).forEach(d => {
-        const parts = d.date.split('-');
-        const dateFormatted = parts.length === 3
-          ? `${parts[2]}.${parts[1]}.${parts[0]}`
-          : d.date;
-        el.innerHTML += `
-          <div class="log-entry">
-            <span class="log-date">📅 ${dateFormatted}</span>
-            <span class="log-time">${formatPlaytime(d.minutes)} Std.</span>
-            <span class="log-del" onclick="deletePlaytime('${d.id}')">×</span>
-          </div>`;
-      });
-    } catch(e) {
-      el.innerHTML = `<p style="color:var(--fr-primary);font-size:13px">Fehler beim Laden: ${e.message}</p>`;
-    }
-  }
-
-  async function deletePlaytime(docId) {
-    if (!confirm('Eintrag löschen?')) return;
-    await db.collection('playtime_log').doc(docId).delete();
-    showToast('Eintrag gelöscht.');
-    await loadPlaytimeLog();
   }
 
   async function loadNotes() {

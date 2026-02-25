@@ -102,7 +102,7 @@ const POKEMON_LIST = [
   {id:16,name:"Taubsi"},{id:17,name:"Tauboga"},{id:18,name:"Tauboss"},
   {id:19,name:"Rattfratz"},{id:20,name:"Rattikarl"},
   {id:21,name:"Habitak"},{id:22,name:"Ibitak"},
-  {id:23,name:"Rettan"},{id:24,name:"Arbok"},
+  {id:23,name:"Ekans"},{id:24,name:"Arbok"},
   {id:25,name:"Pikachu"},{id:26,name:"Raichu"},
   {id:27,name:"Sandan"},{id:28,name:"Sandamer"},
   {id:29,name:"Nidoran♀"},{id:30,name:"Nidorina"},{id:31,name:"Nidoqueen"},
@@ -162,7 +162,6 @@ const POKEMON_LIST = [
 
 // ── Post-Game Pokémon (nur nach allen 8 Orden sichtbar) ───────
 const POSTGAME_POKEMON = [
-  // Johto-Starter & Entwicklungen (Tausch via Ruby/Saphir)
   {id:152,name:"Endivie",    note:"Eiland 2 / Tausch"},
   {id:153,name:"Lorblatt",   note:"Eiland 2 / Tausch – Entwicklung"},
   {id:154,name:"Meganie",    note:"Eiland 2 / Tausch – Entwicklung"},
@@ -172,7 +171,6 @@ const POSTGAME_POKEMON = [
   {id:158,name:"Karnimani",  note:"Eiland 2 / Tausch"},
   {id:159,name:"Tyracroc",   note:"Eiland 2 / Tausch – Entwicklung"},
   {id:160,name:"Impergator", note:"Eiland 2 / Tausch – Entwicklung"},
-  // Normale Pokémon auf Sevii-Inseln (mit vollständigen Evolutionsketten)
   {id:163,name:"Hoothoot",   note:"Eiland 5"},
   {id:164,name:"Noctuh",     note:"Eiland 5"},
   {id:165,name:"Ledyba",     note:"Eiland 1 (Blattgrün)"},
@@ -248,14 +246,11 @@ const POSTGAME_POKEMON = [
   {id:240,name:"Magby",      note:"Eiland 4 – Zucht (Blattgrün)"},
   {id:241,name:"Miltank",    note:"Eiland 5"},
   {id:242,name:"Heiteira",   note:"Eiland 5 – Zucht"},
-  // Legendäre Hunde
   {id:243,name:"Raikou",     note:"Wanderpokémon (Festland)"},
   {id:244,name:"Entei",      note:"Wanderpokémon (Festland)"},
   {id:245,name:"Suicune",    note:"Wanderpokémon (Festland)"},
-  // Legendäre Turm-Pokémon (Event)
   {id:249,name:"Lugia",      note:"Eiland 8 – Navel Rock (Event)"},
   {id:250,name:"Ho-Oh",      note:"Eiland 8 – Navel Rock (Event)"},
-  // Deoxys (Event)
   {id:386,name:"Deoxys",     note:"Eiland 9 – Birth Island (Event)"},
 ];
 
@@ -269,11 +264,4 @@ function formatDate(ts) {
   if (!ts) return '–';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
-}
-
-function formatPlaytime(minutes) {
-  if (!minutes && minutes !== 0) return '–';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}:${m.toString().padStart(2,'0')}`;
 }

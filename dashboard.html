@@ -42,9 +42,7 @@
     .badge-icon.missing { background:#eee; opacity:0.35; }
 
     /* Tauschbörse Mini */
-    .trade-mini {
-      display:flex; gap:8px; margin-top:10px;
-    }
+    .trade-mini { display:flex; gap:8px; margin-top:10px; }
     .trade-mini-box {
       flex:1; padding:8px 10px; border-radius:var(--radius-sm);
       font-size:11px; font-weight:800; text-align:center;
@@ -64,9 +62,6 @@
     .duel-row.bg-win  { background:var(--bg-bg); border-left:4px solid var(--bg-primary); }
     .duel-row.draw    { background:#f5f5f5;       border-left:4px solid #bbb; }
     .duel-date { font-size:11px; color:var(--text-mid); margin-left:auto; }
-
-    /* Liniendiagramm */
-    .chart-wrapper { position:relative; height:280px; }
 
     .quick-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
     .quick-btn { background:white; border:2px solid var(--light-green); border-radius:var(--radius); padding:18px 10px; text-align:center; text-decoration:none; color:var(--text-dark); transition:all 0.2s; display:block; }
@@ -99,14 +94,6 @@
     <div style="color:var(--text-mid)">Lade...</div>
   </div>
 
-  <!-- Spielzeit Liniendiagramm -->
-  <div class="card" style="margin-bottom:24px">
-    <div class="card-title">⏱️ SPIELZEIT DER LETZTEN 10 TAGE</div>
-    <div class="chart-wrapper">
-      <canvas id="playtime-chart"></canvas>
-    </div>
-  </div>
-
   <!-- Duelle -->
   <div class="card" style="margin-bottom:24px">
     <div class="card-title">⚔️ DUELL-BILANZ</div>
@@ -136,22 +123,19 @@
   requireAuth(async () => { loadDashboard(); });
 
   async function loadDashboard() {
-    // Alle Spieler laden
     const snap = await db.collection('players').get();
     const players = {};
     snap.forEach(doc => { players[doc.data().edition] = doc.data(); });
 
-    // Trade-Zahlen laden
     const tradeSnap = await db.collection('trades').get();
     const tradeCounts = {};
     tradeSnap.forEach(doc => {
       const d = doc.data();
       if (!tradeCounts[d.uid]) tradeCounts[d.uid] = {offer:0, wanted:0};
-      if (d.type === 'offer')  tradeCounts[d.uid].offer++;
-      else                      tradeCounts[d.uid].wanted++;
+      if (d.type === 'offer') tradeCounts[d.uid].offer++;
+      else                    tradeCounts[d.uid].wanted++;
     });
 
-    // UIDs den Editionen zuordnen
     const tradeByEdition = {};
     snap.forEach(doc => {
       const d = doc.data();
@@ -159,7 +143,6 @@
     });
 
     renderDualPanel(players, tradeByEdition);
-    await loadPlaytimeChart(players);
     await loadDuelStats();
   }
 
@@ -167,7 +150,7 @@
     const panel = document.getElementById('dual-panel');
     panel.innerHTML = '';
     ['feuerrot','blattgruen'].forEach(ed => {
-      const p = players[ed];
+      const p  = players[ed];
       const tc = tradeByEdition[ed] || {offer:0, wanted:0};
       if (!p) {
         panel.innerHTML += `<div class="panel-${ed}"><p style="color:var(--text-mid);font-size:13px">Noch nicht eingerichtet.</p></div>`;
@@ -196,7 +179,6 @@
             <div class="stat-box"><span class="stat-number">${badges}/8</span><div class="stat-label">Orden</div></div>
             <div class="stat-box"><span class="stat-number">${caught}</span><div class="stat-label">Gefangen</div></div>
             <div class="stat-box"><span class="stat-number">${seen}</span><div class="stat-label">Gesehen</div></div>
-            <div class="stat-box"><span class="stat-number">${formatPlaytime(p.playtimeMinutes)}</span><div class="stat-label">Spielzeit</div></div>
           </div>
           <div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">Orden</div>
           <div class="badges-row">${badgesHtml}</div>
@@ -211,113 +193,6 @@
             </div>
           </div>
         </div>`;
-    });
-  }
-
-  async function loadPlaytimeChart(players) {
-    // Letzte 10 Tage generieren
-    const today = new Date();
-    today.setHours(23,59,59,999);
-    const labels = [];
-    const dateKeys = [];
-    for (let i = 9; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'}));
-      dateKeys.push(d.toISOString().split('T')[0]);
-    }
-
-    // Spielzeit-Einträge aus Firestore laden
-    const tenDaysAgo = new Date(today);
-    tenDaysAgo.setDate(tenDaysAgo.getDate() - 9);
-    tenDaysAgo.setHours(0,0,0,0);
-
-    const ptSnap = await db.collection('playtime_log')
-      .where('date', '>=', tenDaysAgo.toISOString().split('T')[0])
-      .get();
-
-    // Daten nach Edition und Datum aufteilen
-    const dataByEdition = { feuerrot: {}, blattgruen: {} };
-    ptSnap.forEach(doc => {
-      const d = doc.data();
-      if (dataByEdition[d.edition]) {
-        dataByEdition[d.edition][d.date] = d.minutes;
-      }
-    });
-
-    const frData = dateKeys.map(k => {
-      const val = dataByEdition.feuerrot[k];
-      return val !== undefined ? parseFloat((val/60).toFixed(2)) : null;
-    });
-    const bgData = dateKeys.map(k => {
-      const val = dataByEdition.blattgruen[k];
-      return val !== undefined ? parseFloat((val/60).toFixed(2)) : null;
-    });
-
-    const ctx = document.getElementById('playtime-chart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: '🔴 Feuerrot',
-            data: frData,
-            borderColor: '#CC2200',
-            backgroundColor: 'rgba(204,34,0,0.08)',
-            borderWidth: 3,
-            pointRadius: 6,
-            pointBackgroundColor: '#CC2200',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            tension: 0.3,
-            spanGaps: true,
-          },
-          {
-            label: '🟢 Blattgrün',
-            data: bgData,
-            borderColor: '#1A7A2E',
-            backgroundColor: 'rgba(26,122,46,0.08)',
-            borderWidth: 3,
-            pointRadius: 6,
-            pointBackgroundColor: '#1A7A2E',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            tension: 0.3,
-            spanGaps: true,
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top', labels: { font: { family: 'Nunito', weight: '800', size: 13 } } },
-          tooltip: {
-            callbacks: {
-              label: ctx => {
-                const val = ctx.parsed.y;
-                if (val === null) return `${ctx.dataset.label}: kein Eintrag`;
-                const h = Math.floor(val);
-                const m = Math.round((val - h) * 60);
-                return `${ctx.dataset.label}: ${h}:${m.toString().padStart(2,'0')} Std.`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'Nunito', weight: '700', size: 11 } } },
-          y: {
-            grid: { color: '#f0f0f0' },
-            ticks: {
-              font: { family: 'Nunito', weight: '700', size: 11 },
-              callback: val => `${val}h`
-            },
-            beginAtZero: true,
-            min: 0
-          }
-        }
-      }
     });
   }
 
