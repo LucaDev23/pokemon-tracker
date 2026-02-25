@@ -6,40 +6,41 @@
   <title>Pokémon Tracker – Fortschritt</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .badge-selector {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-      margin-bottom: 8px;
-    }
+    .badge-selector { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px; }
     .badge-tile {
-      border: 3px solid #ddd; border-radius: var(--radius-sm); padding: 14px 8px;
-      text-align: center; cursor: pointer; transition: all 0.2s; background: white;
+      border:3px solid #ddd; border-radius:var(--radius-sm); padding:14px 8px;
+      text-align:center; transition:all 0.2s; background:white; position:relative;
     }
-    .badge-tile:hover { border-color: var(--mid-green); }
-    .badge-tile.earned { border-color: gold; background: #FFFBE0; }
-    .badge-tile .b-icon { font-size: 28px; display: block; margin-bottom: 4px; }
-    .badge-tile .b-name { font-size: 11px; font-weight: 800; color: var(--text-dark); }
-    .badge-tile .b-gym  { font-size: 10px; color: var(--text-mid); }
-    .badge-tile.earned .b-name { color: #8B6914; }
+    .badge-tile.earned  { border-color:gold; background:#FFFBE0; cursor:pointer; }
+    .badge-tile.earned:hover { transform:scale(1.04); }
+    .badge-tile.next    { border-color:var(--mid-green); background:var(--light-green); cursor:pointer; animation:pulse 1.5s infinite; }
+    .badge-tile.locked  { opacity:0.35; cursor:not-allowed; }
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(109,201,109,0.4)} 50%{box-shadow:0 0 0 8px rgba(109,201,109,0)} }
 
-    .playime-input-row {
-      display: flex; gap: 12px; align-items: flex-end;
-    }
-    .playime-input-row .form-group { flex: 1; margin: 0; }
+    .badge-tile .b-icon  { font-size:28px; display:block; margin-bottom:4px; }
+    .badge-tile .b-name  { font-size:11px; font-weight:800; color:var(--text-dark); }
+    .badge-tile .b-gym   { font-size:10px; color:var(--text-mid); }
+    .badge-tile.earned .b-name { color:#8B6914; }
+    .badge-tile.next   .b-name { color:var(--dark-green); }
+    .lock-overlay { position:absolute; top:6px; right:6px; font-size:12px; }
 
-    .progress-notes textarea {
-      min-height: 120px; resize: vertical;
-    }
+    /* Spielzeit Einträge */
+    .playtime-entry-row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    .playtime-entry-row .form-group { flex:1; min-width:100px; margin:0; }
+    .playtime-entry-row .btn { margin-bottom:18px; flex-shrink:0; }
 
-    .save-bar {
-      position: sticky; bottom: 0; background: white;
-      border-top: 2px solid var(--light-green);
-      padding: 16px 0; margin-top: 24px;
-      display: flex; gap: 12px;
+    .playtime-log { margin-top:16px; }
+    .log-entry {
+      display:flex; align-items:center; gap:12px; padding:10px 14px;
+      background:var(--light-green); border-radius:var(--radius-sm); margin-bottom:7px;
+      font-size:13px;
     }
+    .log-date  { font-weight:800; color:var(--dark-green); min-width:80px; }
+    .log-time  { font-family:var(--font-pixel); font-size:12px; color:var(--dark-green); }
+    .log-del   { margin-left:auto; color:#aaa; cursor:pointer; font-size:18px; transition:color 0.2s; }
+    .log-del:hover { color:var(--fr-primary); }
 
-    .current-stats {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;
-    }
+    .current-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
   </style>
 </head>
 <body>
@@ -51,42 +52,53 @@
 <div class="page-wrapper">
   <div class="page-title"><span class="icon">🗺️</span> SPIELFORTSCHRITT</div>
 
-  <!-- Aktuelle Stats -->
   <div class="current-stats" id="current-stats"></div>
 
   <!-- Orden -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-title">🏅 ARENA-ORDEN</div>
-    <p style="font-size:13px;color:var(--text-mid);margin-bottom:16px">Klicke auf einen Orden, um ihn als erhalten zu markieren.</p>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:14px">
+      Du kannst nur den nächsten Orden freischalten. Orden müssen der Reihe nach geholt werden.
+    </p>
     <div class="badge-selector" id="badge-selector"></div>
   </div>
 
-  <!-- Spielzeit -->
+  <!-- Spielzeit mit Datum -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-title">⏱️ SPIELZEIT EINTRAGEN</div>
-    <div class="playime-input-row">
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:14px">
+      Trage für jeden Spieltag die <strong>aktuelle Gesamtspielzeit</strong> laut Spielstand ein.<br>
+      Das Diagramm zeigt dann deinen Verlauf der letzten 10 Tage.
+    </p>
+    <div class="playtime-entry-row">
+      <div class="form-group">
+        <label class="form-label">Datum</label>
+        <input type="date" id="pt-date" class="form-control">
+      </div>
       <div class="form-group">
         <label class="form-label">Stunden</label>
-        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="0">
+        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="2">
       </div>
       <div class="form-group">
         <label class="form-label">Minuten</label>
-        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="0">
+        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="24">
       </div>
-      <button class="btn btn-primary" onclick="savePlaytime()" style="margin-bottom:18px">Speichern</button>
+      <button class="btn btn-primary" onclick="savePlaytime()">💾 Speichern</button>
     </div>
-    <p style="font-size:12px;color:var(--text-mid)">
-      💡 Tipp: Die Zeit auf dem Spielstand-Bildschirm im Spiel ablesen und hier eintragen.
-    </p>
+
+    <!-- Eingetragene Spielzeiten -->
+    <div class="playtime-log" id="playtime-log">
+      <div style="color:var(--text-mid);font-size:13px">Lade Einträge...</div>
+    </div>
   </div>
 
-  <!-- Notizen / Tagebuch -->
+  <!-- Notizen -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-title">📝 SPIELNOTIZEN</div>
-    <p style="font-size:13px;color:var(--text-mid);margin-bottom:12px">Halte deinen aktuellen Stand fest – nur du kannst das sehen.</p>
-    <div class="form-group progress-notes">
+    <div class="form-group">
       <label class="form-label">Wo bin ich gerade?</label>
-      <textarea id="notes-text" class="form-control" placeholder="z.B. Bin gerade im Safarizone, habe 5 Orden..."></textarea>
+      <textarea id="notes-text" class="form-control" style="min-height:100px;resize:vertical"
+        placeholder="z.B. Bin gerade im Safarizone, habe 5 Orden..."></textarea>
     </div>
     <button class="btn btn-primary" onclick="saveNotes()">💾 Notizen speichern</button>
   </div>
@@ -99,42 +111,44 @@
 <script src="app.js"></script>
 <script>
   const BADGES = [
-    {name:'Felsorden',    gym:'Pewter',    icon:'🪨'},
-    {name:'Kaskaden',     gym:'Cerulean',  icon:'💧'},
-    {name:'Donnerorden',  gym:'Vermilion', icon:'⚡'},
-    {name:'Regenbogen',   gym:'Celadon',   icon:'🌈'},
-    {name:'Sumpforden',   gym:'Fuchsia',   icon:'🌿'},
-    {name:'Marschen',     gym:'Saffron',   icon:'🔮'},
-    {name:'Vulkanorden',  gym:'Cinnabar',  icon:'🔥'},
-    {name:'Erdorden',     gym:'Viridian',  icon:'🌍'},
+    {name:'Felsorden',   gym:'Pewter City',    icon:'🪨'},
+    {name:'Kaskadenord.',gym:'Cerulean City',  icon:'💧'},
+    {name:'Donnerorden', gym:'Vermilion City', icon:'⚡'},
+    {name:'Regenbogen',  gym:'Celadon City',   icon:'🌈'},
+    {name:'Sumpforden',  gym:'Fuchsia City',   icon:'🌿'},
+    {name:'Marschen',    gym:'Saffron City',   icon:'🔮'},
+    {name:'Vulkanorden', gym:'Cinnabar Island',icon:'🔥'},
+    {name:'Erdorden',    gym:'Viridian City',  icon:'🌍'},
   ];
 
   let earnedBadges = 0;
+  let myEdition = '';
 
   requireAuth(async (user, data) => {
     earnedBadges = data?.badges || 0;
+    myEdition    = data?.edition || '';
     renderStats(data);
     renderBadges();
-    loadPlaytime(data);
+    loadPlaytimeLog();
     loadNotes();
+    // Heutiges Datum vorausfüllen
+    document.getElementById('pt-date').value = new Date().toISOString().split('T')[0];
   });
 
   function renderStats(data) {
-    const el = document.getElementById('current-stats');
-    el.innerHTML = `
+    document.getElementById('current-stats').innerHTML = `
       <div class="stat-box">
-        <span class="stat-number">${data?.badges || 0}/8</span>
+        <span class="stat-number">${data?.badges||0}/8</span>
         <div class="stat-label">Orden erhalten</div>
       </div>
       <div class="stat-box">
         <span class="stat-number">${formatPlaytime(data?.playtimeMinutes)}</span>
-        <div class="stat-label">Spielzeit</div>
+        <div class="stat-label">Letzte Spielzeit</div>
       </div>
       <div class="stat-box">
-        <span class="stat-number">${(data?.pokedexCaught || []).length}</span>
+        <span class="stat-number">${(data?.pokedexCaught||[]).length}</span>
         <div class="stat-label">Gefangen</div>
-      </div>
-    `;
+      </div>`;
   }
 
   function renderBadges() {
@@ -142,54 +156,111 @@
     el.innerHTML = '';
     BADGES.forEach((b, i) => {
       const tile = document.createElement('div');
-      tile.className = 'badge-tile' + (i < earnedBadges ? ' earned' : '');
+      const isEarned = i < earnedBadges;
+      const isNext   = i === earnedBadges;
+      const isLocked = i > earnedBadges;
+      tile.className = 'badge-tile ' + (isEarned ? 'earned' : isNext ? 'next' : 'locked');
       tile.innerHTML = `
+        ${isLocked ? '<span class="lock-overlay">🔒</span>' : ''}
         <span class="b-icon">${b.icon}</span>
         <div class="b-name">${b.name}</div>
         <div class="b-gym">${b.gym}</div>
+        ${isNext ? '<div style="font-size:10px;color:var(--dark-green);font-weight:800;margin-top:3px">← Nächster</div>' : ''}
+        ${isEarned ? '<div style="font-size:10px;color:#8B6914;margin-top:3px">✓ Erhalten</div>' : ''}
       `;
-      tile.onclick = () => toggleBadge(i);
+      if (isNext) tile.onclick = () => earnBadge(i);
+      if (isEarned && i === earnedBadges - 1) {
+        // Letzten Orden kann man auch rückgängig machen
+        tile.title = 'Klicken zum Rückgängigmachen';
+        tile.ondblclick = () => revokeBadge(i);
+      }
       el.appendChild(tile);
     });
   }
 
-  async function toggleBadge(index) {
-    // Wenn index < earnedBadges → man klickt auf einen bereits vergebenen
-    // Einfache Logik: earnedBadges = index+1 wenn noch nicht, sonst zurücksetzen
-    if (index + 1 === earnedBadges) {
-      earnedBadges = index; // letzten rückgängig
-    } else {
-      earnedBadges = index + 1;
-    }
-    try {
-      await db.collection('players').doc(currentUser.uid).update({ badges: earnedBadges });
-      renderBadges();
-      showToast(`${earnedBadges}/8 Orden gespeichert! 🏅`);
-    } catch(e) { showToast('Fehler!', true); }
+  async function earnBadge(index) {
+    if (index !== earnedBadges) return; // nur nächster möglich
+    if (!confirm(`"${BADGES[index].name}" erhalten? 🏅`)) return;
+    earnedBadges = index + 1;
+    await saveBadges();
+    renderBadges();
+    showToast(`${BADGES[index].name} erhalten! 🏅 (${earnedBadges}/8)`);
   }
 
-  function loadPlaytime(data) {
-    const total = data?.playtimeMinutes || 0;
-    document.getElementById('pt-hours').value   = Math.floor(total / 60);
-    document.getElementById('pt-minutes').value = total % 60;
+  async function revokeBadge(index) {
+    if (!confirm(`"${BADGES[index].name}" rückgängig machen?`)) return;
+    earnedBadges = index;
+    await saveBadges();
+    renderBadges();
+    showToast('Orden rückgängig gemacht.');
+  }
+
+  async function saveBadges() {
+    await db.collection('players').doc(currentUser.uid).update({ badges: earnedBadges });
   }
 
   async function savePlaytime() {
-    const h = parseInt(document.getElementById('pt-hours').value)   || 0;
-    const m = parseInt(document.getElementById('pt-minutes').value) || 0;
+    const date  = document.getElementById('pt-date').value;
+    const h     = parseInt(document.getElementById('pt-hours').value)   || 0;
+    const m     = parseInt(document.getElementById('pt-minutes').value) || 0;
+    if (!date)  { showToast('Bitte Datum eingeben!', true); return; }
     const total = h * 60 + m;
+    if (total === 0) { showToast('Bitte Spielzeit eingeben!', true); return; }
+
     try {
+      // Im Log speichern (pro Datum ein Eintrag, wird überschrieben wenn schon vorhanden)
+      await db.collection('playtime_log').doc(`${currentUser.uid}_${date}`).set({
+        uid:     currentUser.uid,
+        edition: myEdition,
+        date,
+        minutes: total,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // Auch im Spieler-Profil aktualisieren (für Dashboard-Anzeige)
       await db.collection('players').doc(currentUser.uid).update({ playtimeMinutes: total });
+      currentUserData.playtimeMinutes = total;
+
       showToast(`Spielzeit gespeichert: ${formatPlaytime(total)} Std. ⏱️`);
-    } catch(e) { showToast('Fehler!', true); }
+      loadPlaytimeLog();
+    } catch(e) { showToast('Fehler: ' + e.message, true); }
+  }
+
+  async function loadPlaytimeLog() {
+    const snap = await db.collection('playtime_log')
+      .where('uid', '==', currentUser.uid)
+      .orderBy('date', 'desc')
+      .limit(15)
+      .get();
+
+    const el = document.getElementById('playtime-log');
+    if (snap.empty) {
+      el.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Einträge.</p>';
+      return;
+    }
+    el.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Deine Einträge</div>';
+    snap.forEach(doc => {
+      const d = doc.data();
+      const dateFormatted = new Date(d.date).toLocaleDateString('de-CH', {day:'2-digit',month:'2-digit',year:'numeric'});
+      el.innerHTML += `
+        <div class="log-entry">
+          <span class="log-date">📅 ${dateFormatted}</span>
+          <span class="log-time">${formatPlaytime(d.minutes)} Std.</span>
+          <span class="log-del" onclick="deletePlaytime('${doc.id}')">×</span>
+        </div>`;
+    });
+  }
+
+  async function deletePlaytime(docId) {
+    if (!confirm('Eintrag löschen?')) return;
+    await db.collection('playtime_log').doc(docId).delete();
+    showToast('Eintrag gelöscht.');
+    loadPlaytimeLog();
   }
 
   async function loadNotes() {
     try {
       const snap = await db.collection('player_notes').doc(currentUser.uid).get();
-      if (snap.exists) {
-        document.getElementById('notes-text').value = snap.data().notes || '';
-      }
+      if (snap.exists) document.getElementById('notes-text').value = snap.data().notes || '';
     } catch(e) {}
   }
 
@@ -197,8 +268,7 @@
     const text = document.getElementById('notes-text').value;
     try {
       await db.collection('player_notes').doc(currentUser.uid).set({
-        uid: currentUser.uid,
-        notes: text,
+        uid: currentUser.uid, notes: text,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       showToast('Notizen gespeichert! 📝');

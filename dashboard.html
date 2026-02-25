@@ -5,129 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pokémon Tracker – Dashboard</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     .dual-panel {
       display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
       margin-bottom: 32px;
     }
-
-    /* Feuerrot Panel */
     .panel-feuerrot {
-      background: var(--fr-bg);
-      border: 3px solid var(--fr-primary);
-      border-radius: var(--radius);
-      padding: 24px;
+      background: var(--fr-bg); border: 3px solid var(--fr-primary);
+      border-radius: var(--radius); padding: 24px;
     }
-    .panel-feuerrot .panel-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
-    }
-    .panel-feuerrot .panel-title {
-      font-family: var(--font-pixel); font-size: 9px; color: var(--fr-dark);
-    }
-    .panel-feuerrot .stat-box { background: var(--fr-card); }
-    .panel-feuerrot .stat-number { color: var(--fr-dark); }
-    .panel-feuerrot .panel-badge {
-      padding: 4px 12px; border-radius: 20px;
-      background: var(--fr-primary); color: white;
-      font-size: 10px; font-weight: 800;
-    }
-
-    /* Blattgrün Panel */
     .panel-blattgruen {
-      background: var(--bg-bg);
-      border: 3px solid var(--bg-primary);
-      border-radius: var(--radius);
-      padding: 24px;
+      background: var(--bg-bg); border: 3px solid var(--bg-primary);
+      border-radius: var(--radius); padding: 24px;
     }
-    .panel-blattgruen .panel-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
-    }
-    .panel-blattgruen .panel-title {
-      font-family: var(--font-pixel); font-size: 9px; color: var(--bg-dark);
-    }
-    .panel-blattgruen .stat-box { background: var(--bg-card); }
-    .panel-blattgruen .stat-number { color: var(--bg-dark); }
-    .panel-blattgruen .panel-badge {
-      padding: 4px 12px; border-radius: 20px;
-      background: var(--bg-primary); color: white;
-      font-size: 10px; font-weight: 800;
-    }
+    .panel-feuerrot  .panel-title { font-family:var(--font-pixel); font-size:9px; color:var(--fr-dark); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+    .panel-blattgruen .panel-title { font-family:var(--font-pixel); font-size:9px; color:var(--bg-dark); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
 
-    .trainer-avatar {
-      width: 72px; height: 72px; border-radius: 50%;
-      object-rendering: pixelated;
-      border: 3px solid white;
-      box-shadow: var(--shadow);
-    }
+    .trainer-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .trainer-avatar { width:64px; height:64px; border-radius:50%; border:3px solid white; box-shadow:var(--shadow); image-rendering:pixelated; }
+    .trainer-name  { font-weight:800; font-size:17px; }
+    .trainer-sub   { font-size:12px; color:var(--text-mid); margin-top:2px; }
 
-    .trainer-info { flex: 1; }
-    .trainer-name { font-weight: 800; font-size: 18px; }
-    .trainer-sub  { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+    .panel-feuerrot  .panel-badge { padding:3px 10px; border-radius:20px; background:var(--fr-primary);  color:white; font-size:10px; font-weight:800; }
+    .panel-blattgruen .panel-badge { padding:3px 10px; border-radius:20px; background:var(--bg-primary); color:white; font-size:10px; font-weight:800; }
 
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+    .panel-feuerrot  .stat-box { background:var(--fr-card); }
+    .panel-feuerrot  .stat-number { color:var(--fr-dark); }
+    .panel-blattgruen .stat-box { background:var(--bg-card); }
+    .panel-blattgruen .stat-number { color:var(--bg-dark); }
 
-    /* Badges */
-    .badges-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
-    .badge-icon {
-      width: 32px; height: 32px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
-    }
-    .badge-icon.earned { background: gold; box-shadow: 0 0 8px gold; }
-    .badge-icon.missing { background: #eee; opacity: 0.4; }
+    .badges-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+    .badge-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
+    .badge-icon.earned  { background:gold; box-shadow:0 0 6px gold; }
+    .badge-icon.missing { background:#eee; opacity:0.35; }
 
-    /* Spielzeit Vergleich */
-    .time-bar-wrapper { margin-bottom: 8px; }
-    .time-bar-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
-    .time-bar-track { background: #eee; border-radius: 8px; height: 12px; overflow: hidden; }
-    .time-bar-fill  { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
-    .fr-bar  { background: linear-gradient(to right, var(--fr-primary), var(--fr-accent)); }
-    .bg-bar  { background: linear-gradient(to right, var(--bg-primary), var(--bg-accent)); }
+    /* Tauschbörse Mini */
+    .trade-mini {
+      display:flex; gap:8px; margin-top:10px;
+    }
+    .trade-mini-box {
+      flex:1; padding:8px 10px; border-radius:var(--radius-sm);
+      font-size:11px; font-weight:800; text-align:center;
+    }
+    .panel-feuerrot  .trade-mini-box { background:var(--fr-card);  color:var(--fr-dark); border:1.5px solid var(--fr-secondary); }
+    .panel-blattgruen .trade-mini-box { background:var(--bg-card); color:var(--bg-dark); border:1.5px solid var(--bg-secondary); }
+    .trade-mini-num { font-family:var(--font-pixel); font-size:14px; display:block; margin-bottom:2px; }
 
-    /* Duelle Punkte */
-    .duel-score {
-      display: flex; align-items: center; justify-content: center; gap: 20px;
-      background: white; border-radius: var(--radius); padding: 20px;
-      border: 2px solid var(--light-green); margin-bottom: 24px;
-    }
-    .duel-number {
-      font-family: var(--font-pixel); font-size: 36px;
-    }
-    .duel-vs {
-      font-family: var(--font-pixel); font-size: 12px; color: var(--text-mid);
-    }
-    .duel-score .fr-num { color: var(--fr-primary); }
-    .duel-score .bg-num { color: var(--bg-primary); }
+    /* Duel Score */
+    .duel-score { display:flex; align-items:center; justify-content:center; gap:24px; padding:20px; }
+    .duel-number { font-family:var(--font-pixel); font-size:40px; }
+    .duel-vs     { font-family:var(--font-pixel); font-size:12px; color:var(--text-mid); }
+    .fr-num { color:var(--fr-primary); }
+    .bg-num { color:var(--bg-primary); }
+    .duel-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:7px; font-size:13px; }
+    .duel-row.fr-win  { background:var(--fr-bg); border-left:4px solid var(--fr-primary); }
+    .duel-row.bg-win  { background:var(--bg-bg); border-left:4px solid var(--bg-primary); }
+    .duel-row.draw    { background:#f5f5f5;       border-left:4px solid #bbb; }
+    .duel-date { font-size:11px; color:var(--text-mid); margin-left:auto; }
 
-    /* Letzte Duelle */
-    .duel-row {
-      display: flex; align-items: center; gap: 12px; padding: 12px;
-      border-radius: var(--radius-sm); margin-bottom: 8px;
-      font-size: 13px;
-    }
-    .duel-row.fr-win { background: var(--fr-bg); border-left: 4px solid var(--fr-primary); }
-    .duel-row.bg-win { background: var(--bg-bg); border-left: 4px solid var(--bg-primary); }
-    .duel-row.draw   { background: #f5f5f5;    border-left: 4px solid #bbb; }
-    .duel-date { font-size: 11px; color: var(--text-mid); margin-left: auto; }
+    /* Liniendiagramm */
+    .chart-wrapper { position:relative; height:280px; }
 
-    /* Quick-Actions */
-    .quick-actions {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-      margin-bottom: 24px;
-    }
-    .quick-btn {
-      background: white; border: 2px solid var(--light-green);
-      border-radius: var(--radius); padding: 20px 12px;
-      text-align: center; text-decoration: none; color: var(--text-dark);
-      transition: all 0.2s; cursor: pointer;
-    }
-    .quick-btn:hover { border-color: var(--mid-green); background: var(--light-green); transform: translateY(-2px); }
-    .quick-btn .qb-icon { font-size: 32px; display: block; margin-bottom: 6px; }
-    .quick-btn .qb-label { font-weight: 800; font-size: 12px; }
+    .quick-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+    .quick-btn { background:white; border:2px solid var(--light-green); border-radius:var(--radius); padding:18px 10px; text-align:center; text-decoration:none; color:var(--text-dark); transition:all 0.2s; display:block; }
+    .quick-btn:hover { border-color:var(--mid-green); background:var(--light-green); transform:translateY(-2px); }
+    .quick-btn .qb-icon  { font-size:30px; display:block; margin-bottom:5px; }
+    .quick-btn .qb-label { font-weight:800; font-size:12px; }
 
-    @media (max-width: 768px) {
-      .dual-panel, .quick-actions { grid-template-columns: 1fr; }
-    }
+    @media(max-width:768px){ .dual-panel,.quick-actions{ grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -137,31 +84,30 @@
 <nav class="navbar" id="main-nav"></nav>
 
 <div class="page-wrapper">
-  <div class="page-title">
-    <span class="icon">📊</span> DASHBOARD
-  </div>
+  <div class="page-title"><span class="icon">📊</span> DASHBOARD</div>
 
   <!-- Quick Actions -->
   <div class="quick-actions">
-    <a class="quick-btn" href="progress.html">
-      <span class="qb-icon">🗺️</span>
-      <span class="qb-label">Fortschritt</span>
-    </a>
-    <a class="quick-btn" href="pokedex.html">
-      <span class="qb-icon">📖</span>
-      <span class="qb-label">Pokédex</span>
-    </a>
-    <a class="quick-btn" href="duels.html">
-      <span class="qb-icon">⚔️</span>
-      <span class="qb-label">Duelle</span>
-    </a>
-    <a class="quick-btn" href="trade.html">
-      <span class="qb-icon">🔄</span>
-      <span class="qb-label">Tauschbörse</span>
-    </a>
+    <a class="quick-btn" href="progress.html"><span class="qb-icon">🗺️</span><span class="qb-label">Fortschritt</span></a>
+    <a class="quick-btn" href="pokedex.html"><span class="qb-icon">📖</span><span class="qb-label">Pokédex</span></a>
+    <a class="quick-btn" href="duels.html"><span class="qb-icon">⚔️</span><span class="qb-label">Duelle</span></a>
+    <a class="quick-btn" href="trade.html"><span class="qb-icon">🔄</span><span class="qb-label">Tauschbörse</span></a>
   </div>
 
-  <!-- Duel Score Übersicht -->
+  <!-- Trainer-Panels -->
+  <div class="dual-panel" id="dual-panel">
+    <div style="color:var(--text-mid)">Lade...</div>
+  </div>
+
+  <!-- Spielzeit Liniendiagramm -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title">⏱️ SPIELZEIT DER LETZTEN 10 TAGE</div>
+    <div class="chart-wrapper">
+      <canvas id="playtime-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Duelle -->
   <div class="card" style="margin-bottom:24px">
     <div class="card-title">⚔️ DUELL-BILANZ</div>
     <div class="duel-score">
@@ -175,41 +121,7 @@
         <div style="font-size:11px;color:var(--bg-dark);font-weight:800">🟢 BLATTGRÜN</div>
       </div>
     </div>
-
-    <!-- Letzte Duelle -->
-    <div id="recent-duels">
-      <div style="color:var(--text-mid);font-size:13px">Lade Duelle...</div>
-    </div>
-  </div>
-
-  <!-- Spielzeit Vergleich -->
-  <div class="card" style="margin-bottom:24px">
-    <div class="card-title">⏱️ SPIELZEIT-VERGLEICH</div>
-    <div id="time-comparison">
-      <div class="time-bar-wrapper">
-        <div class="time-bar-label">
-          <span style="color:var(--fr-dark)">🔴 Feuerrot</span>
-          <span id="fr-time">–</span>
-        </div>
-        <div class="time-bar-track">
-          <div class="time-bar-fill fr-bar" id="fr-bar" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="time-bar-wrapper" style="margin-top:12px">
-        <div class="time-bar-label">
-          <span style="color:var(--bg-dark)">🟢 Blattgrün</span>
-          <span id="bg-time">–</span>
-        </div>
-        <div class="time-bar-track">
-          <div class="time-bar-fill bg-bar" id="bg-bar" style="width:0%"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Trainer-Panel nebeneinander -->
-  <div class="dual-panel" id="dual-panel">
-    <div style="color:var(--text-mid);font-size:13px">Lade Spielerdaten...</div>
+    <div id="recent-duels"></div>
   </div>
 </div>
 
@@ -221,9 +133,7 @@
 <script>
   const BADGE_NAMES = ['Felsorden','Kaskaden','Donnerorden','Regenbogen','Sumpforden','Marschen','Vulkan','Erdorden'];
 
-  requireAuth(async () => {
-    loadDashboard();
-  });
+  requireAuth(async () => { loadDashboard(); });
 
   async function loadDashboard() {
     // Alle Spieler laden
@@ -231,98 +141,195 @@
     const players = {};
     snap.forEach(doc => { players[doc.data().edition] = doc.data(); });
 
-    renderDualPanel(players);
-    renderTimeComparison(players);
-    await loadDuelStats(players);
+    // Trade-Zahlen laden
+    const tradeSnap = await db.collection('trades').get();
+    const tradeCounts = {};
+    tradeSnap.forEach(doc => {
+      const d = doc.data();
+      if (!tradeCounts[d.uid]) tradeCounts[d.uid] = {offer:0, wanted:0};
+      if (d.type === 'offer')  tradeCounts[d.uid].offer++;
+      else                      tradeCounts[d.uid].wanted++;
+    });
+
+    // UIDs den Editionen zuordnen
+    const tradeByEdition = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      tradeByEdition[d.edition] = tradeCounts[d.uid] || {offer:0, wanted:0};
+    });
+
+    renderDualPanel(players, tradeByEdition);
+    await loadPlaytimeChart(players);
+    await loadDuelStats();
   }
 
-  function renderDualPanel(players) {
+  function renderDualPanel(players, tradeByEdition) {
     const panel = document.getElementById('dual-panel');
-    const editions = ['feuerrot', 'blattgruen'];
     panel.innerHTML = '';
-    editions.forEach(ed => {
+    ['feuerrot','blattgruen'].forEach(ed => {
       const p = players[ed];
+      const tc = tradeByEdition[ed] || {offer:0, wanted:0};
       if (!p) {
-        panel.innerHTML += `<div class="panel-${ed}">
-          <div class="panel-header">
-            <div class="panel-title">${ed === 'feuerrot' ? '🔴 FEUERROT' : '🟢 BLATTGRÜN'}</div>
-          </div>
-          <p style="color:var(--text-mid);font-size:13px">Noch nicht eingerichtet.</p>
-        </div>`;
+        panel.innerHTML += `<div class="panel-${ed}"><p style="color:var(--text-mid);font-size:13px">Noch nicht eingerichtet.</p></div>`;
         return;
       }
-
       const badges = p.badges || 0;
       const badgesHtml = BADGE_NAMES.map((b,i) =>
-        `<div class="badge-icon ${i < badges ? 'earned' : 'missing'}" title="${b}">🏅</div>`
-      ).join('');
-
-      const caught = (p.pokedexCaught || []).length;
-      const seen   = (p.pokedexSeen || []).length;
-
+        `<div class="badge-icon ${i<badges?'earned':'missing'}" title="${b}">🏅</div>`).join('');
+      const caught = (p.pokedexCaught||[]).length;
+      const seen   = (p.pokedexSeen||[]).length;
       panel.innerHTML += `
         <div class="panel-${ed}">
-          <div class="panel-header">
+          <div class="panel-title">
+            ${ed==='feuerrot'?'🔴 FEUERROT':'🟢 BLATTGRÜN'}
+            <span class="panel-badge">${p.characterName}</span>
+          </div>
+          <div class="trainer-header">
             <img class="trainer-avatar"
-              src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.starterId || 1}.png"
-              alt="Starter">
-            <div class="trainer-info">
+              src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.starterId||1}.png" alt="Starter">
+            <div>
               <div class="trainer-name">${p.characterName}</div>
               <div class="trainer-sub">Starter: ${p.starterName}</div>
             </div>
-            <div class="panel-badge">${ed === 'feuerrot' ? '🔴 Feuerrot' : '🟢 Blattgrün'}</div>
           </div>
-
           <div class="stats-grid">
-            <div class="stat-box">
-              <span class="stat-number">${badges}/8</span>
-              <div class="stat-label">Orden</div>
+            <div class="stat-box"><span class="stat-number">${badges}/8</span><div class="stat-label">Orden</div></div>
+            <div class="stat-box"><span class="stat-number">${caught}</span><div class="stat-label">Gefangen</div></div>
+            <div class="stat-box"><span class="stat-number">${seen}</span><div class="stat-label">Gesehen</div></div>
+            <div class="stat-box"><span class="stat-number">${formatPlaytime(p.playtimeMinutes)}</span><div class="stat-label">Spielzeit</div></div>
+          </div>
+          <div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">Orden</div>
+          <div class="badges-row">${badgesHtml}</div>
+          <div class="trade-mini">
+            <div class="trade-mini-box">
+              <span class="trade-mini-num">${tc.offer}</span>
+              ✅ Angebote
             </div>
-            <div class="stat-box">
-              <span class="stat-number">${caught}</span>
-              <div class="stat-label">Gefangen</div>
-            </div>
-            <div class="stat-box">
-              <span class="stat-number">${seen}</span>
-              <div class="stat-label">Gesehen</div>
-            </div>
-            <div class="stat-box">
-              <span class="stat-number">${formatPlaytime(p.playtimeMinutes)}</span>
-              <div class="stat-label">Spielzeit</div>
+            <div class="trade-mini-box">
+              <span class="trade-mini-num">${tc.wanted}</span>
+              🔍 Gesuche
             </div>
           </div>
-
-          <div style="font-size:12px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Orden</div>
-          <div class="badges-row">${badgesHtml}</div>
-        </div>
-      `;
+        </div>`;
     });
   }
 
-  function renderTimeComparison(players) {
-    const fr = (players.feuerrot?.playtimeMinutes) || 0;
-    const bg = (players.blattgruen?.playtimeMinutes) || 0;
-    const max = Math.max(fr, bg, 1);
+  async function loadPlaytimeChart(players) {
+    // Letzte 10 Tage generieren
+    const today = new Date();
+    today.setHours(23,59,59,999);
+    const labels = [];
+    const dateKeys = [];
+    for (let i = 9; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      labels.push(d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'}));
+      dateKeys.push(d.toISOString().split('T')[0]);
+    }
 
-    document.getElementById('fr-time').textContent = formatPlaytime(fr) + ' Std.';
-    document.getElementById('bg-time').textContent = formatPlaytime(bg) + ' Std.';
-    document.getElementById('fr-bar').style.width = (fr / max * 100) + '%';
-    document.getElementById('bg-bar').style.width = (bg / max * 100) + '%';
+    // Spielzeit-Einträge aus Firestore laden
+    const tenDaysAgo = new Date(today);
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 9);
+    tenDaysAgo.setHours(0,0,0,0);
+
+    const ptSnap = await db.collection('playtime_log')
+      .where('date', '>=', tenDaysAgo.toISOString().split('T')[0])
+      .get();
+
+    // Daten nach Edition und Datum aufteilen
+    const dataByEdition = { feuerrot: {}, blattgruen: {} };
+    ptSnap.forEach(doc => {
+      const d = doc.data();
+      if (dataByEdition[d.edition]) {
+        dataByEdition[d.edition][d.date] = d.minutes;
+      }
+    });
+
+    const frData = dateKeys.map(k => {
+      const val = dataByEdition.feuerrot[k];
+      return val !== undefined ? parseFloat((val/60).toFixed(2)) : null;
+    });
+    const bgData = dateKeys.map(k => {
+      const val = dataByEdition.blattgruen[k];
+      return val !== undefined ? parseFloat((val/60).toFixed(2)) : null;
+    });
+
+    const ctx = document.getElementById('playtime-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '🔴 Feuerrot',
+            data: frData,
+            borderColor: '#CC2200',
+            backgroundColor: 'rgba(204,34,0,0.08)',
+            borderWidth: 3,
+            pointRadius: 6,
+            pointBackgroundColor: '#CC2200',
+            pointBorderColor: 'white',
+            pointBorderWidth: 2,
+            tension: 0.3,
+            spanGaps: true,
+          },
+          {
+            label: '🟢 Blattgrün',
+            data: bgData,
+            borderColor: '#1A7A2E',
+            backgroundColor: 'rgba(26,122,46,0.08)',
+            borderWidth: 3,
+            pointRadius: 6,
+            pointBackgroundColor: '#1A7A2E',
+            pointBorderColor: 'white',
+            pointBorderWidth: 2,
+            tension: 0.3,
+            spanGaps: true,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { font: { family: 'Nunito', weight: '800', size: 13 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const val = ctx.parsed.y;
+                if (val === null) return `${ctx.dataset.label}: kein Eintrag`;
+                const h = Math.floor(val);
+                const m = Math.round((val - h) * 60);
+                return `${ctx.dataset.label}: ${h}:${m.toString().padStart(2,'0')} Std.`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'Nunito', weight: '700', size: 11 } } },
+          y: {
+            grid: { color: '#f0f0f0' },
+            ticks: {
+              font: { family: 'Nunito', weight: '700', size: 11 },
+              callback: val => `${val}h`
+            },
+            beginAtZero: true,
+            min: 0
+          }
+        }
+      }
+    });
   }
 
-  async function loadDuelStats(players) {
-    const snap = await db.collection('duels').orderBy('date', 'desc').limit(5).get();
-    let frWins = 0, bgWins = 0, draws = 0;
+  async function loadDuelStats() {
+    const snap = await db.collection('duels').orderBy('date','desc').limit(5).get();
+    let frWins = 0, bgWins = 0;
     const duels = [];
-
     snap.forEach(doc => {
-      const d = doc.data();
-      duels.push(d);
+      const d = doc.data(); duels.push(d);
       if (d.winner === 'feuerrot') frWins++;
       else if (d.winner === 'blattgruen') bgWins++;
-      else draws++;
     });
-
     document.getElementById('fr-wins').textContent = frWins;
     document.getElementById('bg-wins').textContent = bgWins;
 
@@ -331,17 +338,11 @@
       container.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Duelle eingetragen.</p>';
       return;
     }
-
-    container.innerHTML = '<div style="font-size:12px;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin-bottom:8px">Letzte Duelle</div>';
+    container.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin-bottom:8px">Letzte Duelle</div>';
     duels.forEach(d => {
-      const cls = d.winner === 'feuerrot' ? 'fr-win' : d.winner === 'blattgruen' ? 'bg-win' : 'draw';
-      const winnerText = d.winner === 'feuerrot' ? '🔴 Feuerrot gewinnt!' : d.winner === 'blattgruen' ? '🟢 Blattgrün gewinnt!' : '🤝 Unentschieden';
-      container.innerHTML += `
-        <div class="duel-row ${cls}">
-          <span>⚔️</span>
-          <span style="font-weight:700">${winnerText}</span>
-          <span class="duel-date">${formatDate(d.date)}</span>
-        </div>`;
+      const cls = d.winner==='feuerrot'?'fr-win':d.winner==='blattgruen'?'bg-win':'draw';
+      const txt = d.winner==='feuerrot'?'🔴 Feuerrot gewinnt!':d.winner==='blattgruen'?'🟢 Blattgrün gewinnt!':'🤝 Unentschieden';
+      container.innerHTML += `<div class="duel-row ${cls}"><span>⚔️</span><span style="font-weight:700">${txt}</span><span class="duel-date">${formatDate(d.date)}</span></div>`;
     });
   }
 </script>

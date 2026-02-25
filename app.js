@@ -2,37 +2,26 @@
 //  app.js – Gemeinsame Hilfsfunktionen für alle Seiten
 // ============================================================
 
-// Firebase wird über CDN geladen (in jeder HTML-Seite)
-// Diese Datei setzt voraus, dass firebase-config.js vorher geladen wurde
-
 let db, auth, currentUser, currentUserData;
 
-// ── Firebase initialisieren ──────────────────────────────────
 function initFirebase() {
   firebase.initializeApp(FIREBASE_CONFIG);
   db   = firebase.firestore();
   auth = firebase.auth();
 }
 
-// ── Auth-Guard: Weiterleitung wenn nicht eingeloggt ──────────
 function requireAuth(callback) {
   initFirebase();
   auth.onAuthStateChanged(async (user) => {
     hideLoading();
-    if (!user) {
-      window.location.href = 'index.html';
-      return;
-    }
+    if (!user) { window.location.href = 'index.html'; return; }
     currentUser = user;
-    // Benutzerdaten aus Firestore laden
     const snap = await db.collection('players').doc(user.uid).get();
     if (snap.exists) {
       currentUserData = snap.data();
     } else {
-      // Erster Login: Weiterleitung zu Setup
       if (!window.location.pathname.includes('setup.html')) {
-        window.location.href = 'setup.html';
-        return;
+        window.location.href = 'setup.html'; return;
       }
     }
     renderNav();
@@ -40,42 +29,36 @@ function requireAuth(callback) {
   });
 }
 
-// ── Navigation rendern ───────────────────────────────────────
 function renderNav() {
   const nav = document.getElementById('main-nav');
   if (!nav || !currentUser) return;
-
   const edition = currentUserData?.edition || '';
   const name    = currentUserData?.characterName || currentUser.email;
   const page    = window.location.pathname.split('/').pop();
-
   nav.innerHTML = `
     <a href="dashboard.html" class="navbar-brand">
       <span class="red">🔴</span>Pokémon Tracker<span class="green">🟢</span>
     </a>
     <ul class="navbar-nav">
-      <li><a href="dashboard.html"   ${page==='dashboard.html'   ? 'class="active"':''}>📊 Dashboard</a></li>
-      <li><a href="pokedex.html"     ${page==='pokedex.html'     ? 'class="active"':''}>📖 Pokédex</a></li>
-      <li><a href="progress.html"    ${page==='progress.html'    ? 'class="active"':''}>🗺️ Fortschritt</a></li>
-      <li><a href="duels.html"       ${page==='duels.html'       ? 'class="active"':''}>⚔️ Duelle</a></li>
-      <li><a href="trade.html"       ${page==='trade.html'       ? 'class="active"':''}>🔄 Tausch</a></li>
-      <li><a href="goals.html"       ${page==='goals.html'       ? 'class="active"':''}>🎯 Ziele</a></li>
+      <li><a href="dashboard.html"   ${page==='dashboard.html'   ?'class="active"':''}>📊 Dashboard</a></li>
+      <li><a href="pokedex.html"     ${page==='pokedex.html'     ?'class="active"':''}>📖 Pokédex</a></li>
+      <li><a href="progress.html"    ${page==='progress.html'    ?'class="active"':''}>🗺️ Fortschritt</a></li>
+      <li><a href="duels.html"       ${page==='duels.html'       ?'class="active"':''}>⚔️ Duelle</a></li>
+      <li><a href="trade.html"       ${page==='trade.html'       ?'class="active"':''}>🔄 Tausch</a></li>
+      <li><a href="goals.html"       ${page==='goals.html'       ?'class="active"':''}>🎯 Ziele</a></li>
     </ul>
     <div class="navbar-user">
-      <span class="edition-badge ${edition}">${edition === 'feuerrot' ? '🔴 Feuerrot' : '🟢 Blattgrün'}</span>
+      <span class="edition-badge ${edition}">${edition==='feuerrot'?'🔴 Feuerrot':'🟢 Blattgrün'}</span>
       <span style="font-size:13px">${name}</span>
       <button class="btn-logout" onclick="logout()">Abmelden</button>
-    </div>
-  `;
+    </div>`;
 }
 
-// ── Logout ───────────────────────────────────────────────────
 async function logout() {
   await auth.signOut();
   window.location.href = 'index.html';
 }
 
-// ── Loading Screen ───────────────────────────────────────────
 function showLoading() {
   const el = document.getElementById('loading-screen');
   if (el) el.classList.remove('hidden');
@@ -85,7 +68,6 @@ function hideLoading() {
   if (el) el.classList.add('hidden');
 }
 
-// ── Toast-Meldungen ──────────────────────────────────────────
 function showToast(msg, isError = false) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -96,7 +78,7 @@ function showToast(msg, isError = false) {
   setTimeout(() => toast.remove(), 3500);
 }
 
-// ── Pokémon-Liste (Gen 1, 151 Pokémon) ───────────────────────
+// ── Pokémon-Liste Gen 1 (151) ────────────────────────────────
 const POKEMON_LIST = [
   {id:1,name:"Bisasam"},{id:2,name:"Bisaknosp"},{id:3,name:"Bisaflor"},
   {id:4,name:"Glumanda"},{id:5,name:"Glutexo"},{id:6,name:"Glurak"},
@@ -164,22 +146,92 @@ const POKEMON_LIST = [
   {id:150,name:"Mewtu"},{id:151,name:"Mew"}
 ];
 
+// ── Post-Game Pokémon (nur nach allen 8 Orden sichtbar) ───────
+const POSTGAME_POKEMON = [
+  {id:152,name:"Endivie",    note:"Eiland 2 / Tausch"},
+  {id:155,name:"Feurigel",   note:"Eiland 2 / Tausch"},
+  {id:158,name:"Karnimani",  note:"Eiland 2 / Tausch"},
+  {id:163,name:"Hoothoot",   note:"Eiland 5"},
+  {id:164,name:"Noctuh",     note:"Eiland 5"},
+  {id:165,name:"Ledyba",     note:"Eiland 1 (Blattgrün)"},
+  {id:166,name:"Ledian",     note:"Eiland 1 (Blattgrün)"},
+  {id:167,name:"Spinarak",   note:"Eiland 1 (Feuerrot)"},
+  {id:168,name:"Ariados",    note:"Eiland 1 (Feuerrot)"},
+  {id:172,name:"Pichu",      note:"Eiland 4 – Zucht"},
+  {id:173,name:"Fluffeluff", note:"Eiland 4 – Zucht"},
+  {id:174,name:"Mogelbaum",  note:"Eiland 4 – Zucht"},
+  {id:175,name:"Togepi",     note:"Eiland 4 – Ei"},
+  {id:176,name:"Togetic",    note:"Eiland 4"},
+  {id:179,name:"Voltilamm",  note:"Eiland 4"},
+  {id:180,name:"Lektroross", note:"Eiland 4"},
+  {id:181,name:"Ampharos",   note:"Eiland 4"},
+  {id:183,name:"Marill",     note:"Eiland 4"},
+  {id:184,name:"Azumarill",  note:"Eiland 4"},
+  {id:191,name:"Hoppspross", note:"Eiland 5"},
+  {id:192,name:"Sonnflora",  note:"Eiland 5"},
+  {id:193,name:"Yanma",      note:"Eiland 5"},
+  {id:194,name:"Felino",     note:"Eiland 3"},
+  {id:195,name:"Morlord",    note:"Eiland 3"},
+  {id:196,name:"Psiana",     note:"Eiland 4 – Tausch"},
+  {id:197,name:"Nachtara",   note:"Eiland 4 – Tausch"},
+  {id:198,name:"Kramurx",    note:"Eiland 6"},
+  {id:200,name:"Traunfugil", note:"Eiland 6"},
+  {id:202,name:"Woingenau",  note:"Eiland 4"},
+  {id:203,name:"Girafarig",  note:"Eiland 4"},
+  {id:206,name:"Dummisel",   note:"Eiland 5"},
+  {id:209,name:"Snubbull",   note:"Eiland 5"},
+  {id:210,name:"Granbull",   note:"Eiland 5"},
+  {id:211,name:"Baldorfish", note:"Eiland 3 – Angeln"},
+  {id:213,name:"Pottrott",   note:"Eiland 5"},
+  {id:214,name:"Skaraborn",  note:"Eiland 5"},
+  {id:215,name:"Sniebel",    note:"Eiland 4"},
+  {id:216,name:"Teddiursa",  note:"Eiland 4"},
+  {id:217,name:"Ursaring",   note:"Eiland 4"},
+  {id:218,name:"Schneckmag", note:"Eiland 1 (Feuerrot)"},
+  {id:219,name:"Magcargo",   note:"Eiland 1 (Feuerrot)"},
+  {id:220,name:"Quiekel",    note:"Eiland 4"},
+  {id:221,name:"Keifel",     note:"Eiland 4"},
+  {id:222,name:"Corasonn",   note:"Eiland 1 – Angeln"},
+  {id:223,name:"Remoraid",   note:"Eiland 4 – Angeln"},
+  {id:224,name:"Oktillery",  note:"Eiland 4 – Angeln"},
+  {id:225,name:"Botogel",    note:"Eiland 4"},
+  {id:226,name:"Mantax",     note:"Eiland 4 – Surfen"},
+  {id:227,name:"Panzaeron",  note:"Eiland 4"},
+  {id:228,name:"Hunduster",  note:"Eiland 6"},
+  {id:229,name:"Hundemon",   note:"Eiland 6"},
+  {id:231,name:"Phanpy",     note:"Eiland 4 (Blattgrün)"},
+  {id:232,name:"Donphan",    note:"Eiland 4 (Blattgrün)"},
+  {id:234,name:"Damhirplex", note:"Eiland 4"},
+  {id:235,name:"Farbeagle",  note:"Eiland 5"},
+  {id:236,name:"Rabauz",     note:"Eiland 4"},
+  {id:237,name:"Kapoera",    note:"Eiland 4"},
+  {id:238,name:"Kussilla",   note:"Eiland 4 – Zucht"},
+  {id:239,name:"Elekid",     note:"Eiland 4 – Zucht (Feuerrot)"},
+  {id:240,name:"Magby",      note:"Eiland 4 – Zucht (Blattgrün)"},
+  {id:241,name:"Miltank",    note:"Eiland 5"},
+  {id:242,name:"Heiteira",   note:"Eiland 5 – Zucht"},
+  {id:243,name:"Raikou",     note:"Wanderpokémon (Festland)"},
+  {id:244,name:"Entei",      note:"Wanderpokémon (Festland)"},
+  {id:245,name:"Suicune",    note:"Wanderpokémon (Festland)"},
+  {id:249,name:"Lugia",      note:"Eiland 8 – Navel Rock (Event)"},
+  {id:250,name:"Ho-Oh",      note:"Eiland 8 – Navel Rock (Event)"},
+  {id:386,name:"Deoxys",     note:"Eiland 9 – Birth Island (Event)"},
+];
+
 const STARTERS = [
   {name:"Bisasam",  type:"Pflanze", id:1},
   {name:"Glumanda", type:"Feuer",   id:4},
   {name:"Schiggy",  type:"Wasser",  id:7}
 ];
 
-// ── Datum formatieren ────────────────────────────────────────
 function formatDate(ts) {
   if (!ts) return '–';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 
-// ── Spielzeit hh:mm formatieren ──────────────────────────────
 function formatPlaytime(minutes) {
-  if (!minutes) return '0:00';
+  if (!minutes && minutes !== 0) return '–';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h}:${m.toString().padStart(2,'0')}`;
