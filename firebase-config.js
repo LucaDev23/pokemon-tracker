@@ -4,7 +4,7 @@
 //  Wie du diese findest: siehe ANLEITUNG.md Schritt 2
 // ============================================================
 
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
     apiKey: "AIzaSyA840tD9x2Hk8-8sdmDv9NPcaOoa_wsaGs",
     authDomain: "pokemon-tracker-d5ab4.firebaseapp.com",
     projectId: "pokemon-tracker-d5ab4",
