@@ -89,9 +89,7 @@
     </div>
 
     <!-- Eingetragene Spielzeiten -->
-    <div class="playtime-log" id="playtime-log">
-      
-    </div>
+    <div class="playtime-log" id="playtime-log"></div>
   </div>
 
   <!-- Notizen -->
@@ -125,15 +123,16 @@
 
   let earnedBadges = 0;
   let myEdition = '';
+  // Cache aller eigenen Spielzeit-Einträge (wird beim Laden befüllt)
+  let playtimeCache = [];
 
   requireAuth(async (user, data) => {
     earnedBadges = data?.badges || 0;
     myEdition    = data?.edition || '';
     renderStats(data);
     renderBadges();
-    loadPlaytimeLog();
+    await loadPlaytimeLog(); // await damit Cache bereit ist
     loadNotes();
-    // Heutiges Datum vorausfüllen
     document.getElementById('pt-date').value = new Date().toISOString().split('T')[0];
   });
 
@@ -172,8 +171,7 @@
       `;
       if (isNext) tile.onclick = () => earnBadge(i);
       if (isEarned && i === earnedBadges - 1) {
-        // Letzten Orden kann man auch rückgängig machen
-        tile.title = 'Klicken zum Rückgängigmachen';
+        tile.title = 'Doppelklick zum Rückgängigmachen';
         tile.ondblclick = () => revokeBadge(i);
       }
       el.appendChild(tile);
@@ -181,7 +179,7 @@
   }
 
   async function earnBadge(index) {
-    if (index !== earnedBadges) return; // nur nächster möglich
+    if (index !== earnedBadges) return;
     earnedBadges = index + 1;
     await saveBadges();
     renderBadges();
@@ -200,70 +198,74 @@
   }
 
   async function savePlaytime() {
-    const date  = document.getElementById('pt-date').value;
-    const h     = parseInt(document.getElementById('pt-hours').value)   || 0;
-    const m     = parseInt(document.getElementById('pt-minutes').value) || 0;
-    if (!date)  { showToast('Bitte Datum eingeben!', true); return; }
+    const date = document.getElementById('pt-date').value;
+    const h    = parseInt(document.getElementById('pt-hours').value)   || 0;
+    const m    = parseInt(document.getElementById('pt-minutes').value) || 0;
+
+    if (!date) { showToast('Bitte Datum eingeben!', true); return; }
     const total = h * 60 + m;
     if (total === 0) { showToast('Bitte Spielzeit (Stunden/Minuten) eingeben!', true); return; }
 
-    // Prüfen ob neue Zeit kleiner als vorheriger Eintrag ist
-    const prevSnap = await db.collection('playtime_log')
-      .where('uid', '==', currentUser.uid)
-      .where('date', '<', date)
-      .orderBy('date', 'desc')
-      .limit(1)
-      .get();
-    if (!prevSnap.empty) {
-      const prevMinutes = prevSnap.docs[0].data().minutes;
+    // ✅ FIX: Vorher-Prüfung komplett clientseitig aus dem Cache
+    // Alle Einträge vor dem gewählten Datum aus dem Cache holen
+    const earlier = playtimeCache
+      .filter(e => e.date < date)
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    if (earlier.length > 0) {
+      const prevMinutes = earlier[0].minutes;
       if (total < prevMinutes) {
-        const prevFormatted = formatPlaytime(prevMinutes);
-        showToast(`⚠️ Die Spielzeit (${formatPlaytime(total)}) ist kleiner als der vorherige Eintrag (${prevFormatted}). Bitte die aktuelle Gesamtspielzeit vom Spielstand eingeben.`, true);
+        showToast(
+          `⚠️ Die Spielzeit (${formatPlaytime(total)}) ist kleiner als der vorherige Eintrag (${formatPlaytime(prevMinutes)}). Bitte die aktuelle Gesamtspielzeit vom Spielstand eingeben.`,
+          true
+        );
         return;
       }
     }
 
     try {
-      // Im Log speichern (pro Datum ein Eintrag, wird überschrieben wenn schon vorhanden)
       await db.collection('playtime_log').doc(`${currentUser.uid}_${date}`).set({
-        uid:     currentUser.uid,
-        edition: myEdition,
+        uid:       currentUser.uid,
+        edition:   myEdition,
         date,
-        minutes: total,
+        minutes:   total,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      // Auch im Spieler-Profil aktualisieren (für Dashboard-Anzeige)
       await db.collection('players').doc(currentUser.uid).update({ playtimeMinutes: total });
       currentUserData.playtimeMinutes = total;
 
       showToast(`Spielzeit gespeichert: ${formatPlaytime(total)} Std. ⏱️`);
-      loadPlaytimeLog();
-    } catch(e) { showToast('Fehler: ' + e.message, true); }
+      await loadPlaytimeLog(); // Cache neu laden
+    } catch(e) {
+      showToast('Fehler: ' + e.message, true);
+    }
   }
 
   async function loadPlaytimeLog() {
     const el = document.getElementById('playtime-log');
     el.innerHTML = '<div style="color:var(--text-mid);font-size:13px">Lade...</div>';
     try {
-      // Einfache Query ohne zusammengesetzten Index
+      // Einfache Query ohne zusammengesetzten Index – nur nach uid filtern
       const snap = await db.collection('playtime_log')
         .where('uid', '==', currentUser.uid)
         .get();
 
-      if (snap.empty) {
+      playtimeCache = []; // Cache leeren
+      snap.forEach(doc => playtimeCache.push({ id: doc.id, ...doc.data() }));
+      // Clientseitig sortieren
+      playtimeCache.sort((a, b) => b.date.localeCompare(a.date));
+
+      if (playtimeCache.length === 0) {
         el.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Einträge. Trage oben deine erste Spielzeit ein!</p>';
         return;
       }
 
-      // Clientseitig sortieren (vermeidet Firestore-Index-Anforderung)
-      const docs = [];
-      snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
-      docs.sort((a, b) => b.date.localeCompare(a.date));
-
       el.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Deine Einträge (neueste zuerst)</div>';
-      docs.slice(0, 15).forEach(d => {
+      playtimeCache.slice(0, 15).forEach(d => {
         const parts = d.date.split('-');
-        const dateFormatted = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d.date;
+        const dateFormatted = parts.length === 3
+          ? `${parts[2]}.${parts[1]}.${parts[0]}`
+          : d.date;
         el.innerHTML += `
           <div class="log-entry">
             <span class="log-date">📅 ${dateFormatted}</span>
@@ -280,7 +282,7 @@
     if (!confirm('Eintrag löschen?')) return;
     await db.collection('playtime_log').doc(docId).delete();
     showToast('Eintrag gelöscht.');
-    loadPlaytimeLog();
+    await loadPlaytimeLog();
   }
 
   async function loadNotes() {
