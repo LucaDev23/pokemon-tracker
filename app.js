@@ -35,11 +35,13 @@ function renderNav() {
   const edition = currentUserData?.edition || '';
   const name    = currentUserData?.characterName || currentUser.email;
   const page    = window.location.pathname.split('/').pop();
+
   nav.innerHTML = `
-    <a href="dashboard.html" class="navbar-brand">
-      <span class="red">🔴</span>Pokémon Tracker<span class="green">🟢</span>
+    <a href="dashboard.html" class="navbar-brand" title="Zurück zum Dashboard">
+      <span class="home-icon">🏠</span>
+      <span class="brand-text">POKÉMON TRACKER</span>
     </a>
-    <ul class="navbar-nav">
+    <ul class="navbar-nav" id="navbar-nav-list">
       <li><a href="dashboard.html"   ${page==='dashboard.html'   ?'class="active"':''}>📊 Dashboard</a></li>
       <li><a href="pokedex.html"     ${page==='pokedex.html'     ?'class="active"':''}>📖 Pokédex</a></li>
       <li><a href="progress.html"    ${page==='progress.html'    ?'class="active"':''}>🗺️ Fortschritt</a></li>
@@ -49,14 +51,26 @@ function renderNav() {
     </ul>
     <div class="navbar-user">
       <span class="edition-badge ${edition}">${edition==='feuerrot'?'🔴 Feuerrot':'🟢 Blattgrün'}</span>
-      <span style="font-size:13px">${name}</span>
+      <span class="navbar-username">${name}</span>
       <button class="btn-logout" onclick="logout()">Abmelden</button>
+      <button class="hamburger-btn" onclick="toggleMobileMenu()" id="hamburger-btn">
+        <span id="hamburger-icon">☰</span>
+        <span class="hb-label">Menü</span>
+      </button>
     </div>`;
 }
 
 async function logout() {
   await auth.signOut();
   window.location.href = 'index.html';
+}
+
+function toggleMobileMenu() {
+  const nav = document.getElementById('navbar-nav-list');
+  const icon = document.getElementById('hamburger-icon');
+  if (!nav) return;
+  nav.classList.toggle('open');
+  icon.textContent = nav.classList.contains('open') ? '✕' : '☰';
 }
 
 function showLoading() {
@@ -148,15 +162,24 @@ const POKEMON_LIST = [
 
 // ── Post-Game Pokémon (nur nach allen 8 Orden sichtbar) ───────
 const POSTGAME_POKEMON = [
+  // Johto-Starter & Entwicklungen (Tausch via Ruby/Saphir)
   {id:152,name:"Endivie",    note:"Eiland 2 / Tausch"},
+  {id:153,name:"Lorblatt",   note:"Eiland 2 / Tausch – Entwicklung"},
+  {id:154,name:"Meganie",    note:"Eiland 2 / Tausch – Entwicklung"},
   {id:155,name:"Feurigel",   note:"Eiland 2 / Tausch"},
+  {id:156,name:"Igelavar",   note:"Eiland 2 / Tausch – Entwicklung"},
+  {id:157,name:"Tornupto",   note:"Eiland 2 / Tausch – Entwicklung"},
   {id:158,name:"Karnimani",  note:"Eiland 2 / Tausch"},
+  {id:159,name:"Tyracroc",   note:"Eiland 2 / Tausch – Entwicklung"},
+  {id:160,name:"Impergator", note:"Eiland 2 / Tausch – Entwicklung"},
+  // Normale Pokémon auf Sevii-Inseln (mit vollständigen Evolutionsketten)
   {id:163,name:"Hoothoot",   note:"Eiland 5"},
   {id:164,name:"Noctuh",     note:"Eiland 5"},
   {id:165,name:"Ledyba",     note:"Eiland 1 (Blattgrün)"},
   {id:166,name:"Ledian",     note:"Eiland 1 (Blattgrün)"},
   {id:167,name:"Spinarak",   note:"Eiland 1 (Feuerrot)"},
   {id:168,name:"Ariados",    note:"Eiland 1 (Feuerrot)"},
+  {id:169,name:"Iksbat",     note:"Zucht/Tausch"},
   {id:172,name:"Pichu",      note:"Eiland 4 – Zucht"},
   {id:173,name:"Fluffeluff", note:"Eiland 4 – Zucht"},
   {id:174,name:"Mogelbaum",  note:"Eiland 4 – Zucht"},
@@ -165,23 +188,36 @@ const POSTGAME_POKEMON = [
   {id:179,name:"Voltilamm",  note:"Eiland 4"},
   {id:180,name:"Lektroross", note:"Eiland 4"},
   {id:181,name:"Ampharos",   note:"Eiland 4"},
+  {id:182,name:"Blubberus",  note:"Eiland 5"},
   {id:183,name:"Marill",     note:"Eiland 4"},
   {id:184,name:"Azumarill",  note:"Eiland 4"},
-  {id:191,name:"Hoppspross", note:"Eiland 5"},
+  {id:185,name:"Mogelbaum",  note:"Eiland 4"},
+  {id:186,name:"Quaxo",      note:"Eiland 4 – Zucht"},
+  {id:187,name:"Hoppspross", note:"Eiland 5"},
+  {id:188,name:"Hubelupf",   note:"Eiland 5"},
+  {id:189,name:"Papungha",   note:"Eiland 5"},
+  {id:190,name:"Griffel",    note:"Eiland 5"},
+  {id:191,name:"Sonnkern",   note:"Eiland 5"},
   {id:192,name:"Sonnflora",  note:"Eiland 5"},
   {id:193,name:"Yanma",      note:"Eiland 5"},
   {id:194,name:"Felino",     note:"Eiland 3"},
   {id:195,name:"Morlord",    note:"Eiland 3"},
-  {id:196,name:"Psiana",     note:"Eiland 4 – Tausch"},
-  {id:197,name:"Nachtara",   note:"Eiland 4 – Tausch"},
+  {id:196,name:"Psiana",     note:"Tausch (Evoli)"},
+  {id:197,name:"Nachtara",   note:"Tausch (Evoli)"},
   {id:198,name:"Kramurx",    note:"Eiland 6"},
+  {id:199,name:"Laschoking", note:"Tausch"},
   {id:200,name:"Traunfugil", note:"Eiland 6"},
+  {id:201,name:"Icognito",   note:"Eiland 6"},
   {id:202,name:"Woingenau",  note:"Eiland 4"},
   {id:203,name:"Girafarig",  note:"Eiland 4"},
+  {id:204,name:"Scaphatit",  note:"Eiland 5"},
+  {id:205,name:"Forstellka", note:"Eiland 5"},
   {id:206,name:"Dummisel",   note:"Eiland 5"},
+  {id:207,name:"Skorgla",    note:"Eiland 5"},
   {id:209,name:"Snubbull",   note:"Eiland 5"},
   {id:210,name:"Granbull",   note:"Eiland 5"},
   {id:211,name:"Baldorfish", note:"Eiland 3 – Angeln"},
+  {id:212,name:"Scherox",    note:"Eiland 6 – Zucht"},
   {id:213,name:"Pottrott",   note:"Eiland 5"},
   {id:214,name:"Skaraborn",  note:"Eiland 5"},
   {id:215,name:"Sniebel",    note:"Eiland 4"},
@@ -199,8 +235,10 @@ const POSTGAME_POKEMON = [
   {id:227,name:"Panzaeron",  note:"Eiland 4"},
   {id:228,name:"Hunduster",  note:"Eiland 6"},
   {id:229,name:"Hundemon",   note:"Eiland 6"},
+  {id:230,name:"Seedraking", note:"Tausch"},
   {id:231,name:"Phanpy",     note:"Eiland 4 (Blattgrün)"},
   {id:232,name:"Donphan",    note:"Eiland 4 (Blattgrün)"},
+  {id:233,name:"Porygon2",   note:"Tausch"},
   {id:234,name:"Damhirplex", note:"Eiland 4"},
   {id:235,name:"Farbeagle",  note:"Eiland 5"},
   {id:236,name:"Rabauz",     note:"Eiland 4"},
@@ -210,11 +248,14 @@ const POSTGAME_POKEMON = [
   {id:240,name:"Magby",      note:"Eiland 4 – Zucht (Blattgrün)"},
   {id:241,name:"Miltank",    note:"Eiland 5"},
   {id:242,name:"Heiteira",   note:"Eiland 5 – Zucht"},
+  // Legendäre Hunde
   {id:243,name:"Raikou",     note:"Wanderpokémon (Festland)"},
   {id:244,name:"Entei",      note:"Wanderpokémon (Festland)"},
   {id:245,name:"Suicune",    note:"Wanderpokémon (Festland)"},
+  // Legendäre Turm-Pokémon (Event)
   {id:249,name:"Lugia",      note:"Eiland 8 – Navel Rock (Event)"},
   {id:250,name:"Ho-Oh",      note:"Eiland 8 – Navel Rock (Event)"},
+  // Deoxys (Event)
   {id:386,name:"Deoxys",     note:"Eiland 9 – Birth Island (Event)"},
 ];
 

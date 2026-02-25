@@ -74,6 +74,38 @@
       .vs-divider { padding-top: 0; }
       .teams-display { grid-template-columns: 1fr; }
     }
+
+    /* Pokémon Suchfeld mit Autocomplete */
+    .poke-search-wrapper {
+      position: relative; flex: 1;
+    }
+    .poke-search-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid var(--light-green); border-radius: var(--radius-sm);
+      font-family: var(--font-main); font-size: 13px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .poke-search-input:focus { border-color: var(--mid-green); }
+    .poke-search-input.selected { border-color: var(--dark-green); background: var(--light-green); }
+
+    .poke-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: white; border: 2px solid var(--mid-green);
+      border-radius: var(--radius-sm); box-shadow: var(--shadow-hover);
+      max-height: 200px; overflow-y: auto;
+      z-index: 200; display: none;
+    }
+    .poke-dropdown.open { display: block; }
+    .poke-dropdown-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; cursor: pointer; font-size: 13px;
+      transition: background 0.1s;
+    }
+    .poke-dropdown-item:hover { background: var(--light-green); }
+    .poke-dropdown-item img { width: 28px; height: 28px; image-rendering: pixelated; }
+    .poke-dropdown-item .poke-num { font-size: 10px; color: var(--text-mid); font-family: var(--font-pixel); }
+    .poke-dropdown-empty { padding: 12px; font-size: 13px; color: var(--text-mid); text-align: center; }
   </style>
 </head>
 <body>
@@ -141,6 +173,9 @@
     loadDuelHistory();
   });
 
+  // Alle Pokémon (Gen1 + Postgame) für Suche zusammenführen
+  const ALL_POKEMON_FOR_DUEL = [...POKEMON_LIST, ...POSTGAME_POKEMON];
+
   function initSlots(side) {
     const container = document.getElementById(`slots-${side}`);
     const arr = side === 'fr' ? frSlots : bgSlots;
@@ -154,33 +189,76 @@
       const row = document.createElement('div');
       row.className = 'pokemon-slot';
 
-      const sel = document.createElement('select');
-      sel.className = 'form-control';
-      sel.innerHTML = `<option value="">– Pokémon wählen –</option>` +
-        POKEMON_LIST.map(p => `<option value="${p.id}">#${p.id} ${p.name}</option>`).join('');
-      sel.onchange = () => { slot.pokemonId = parseInt(sel.value) || null; updateWinner(); };
+      // Suchfeld-Wrapper
+      const wrapper = document.createElement('div');
+      wrapper.className = 'poke-search-wrapper';
 
-      const aliveBtn = document.createElement('button');
-      aliveBtn.className = 'status-btn alive'; aliveBtn.textContent = '✅';
-      aliveBtn.title = 'Besiegt / KO';
-      aliveBtn.onclick = () => { slot.fainted = !slot.fainted; updateSlotUI(aliveBtn, faintBtn, slot); updateWinner(); };
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'poke-search-input';
+      input.placeholder = '🔍 Pokémon suchen...';
+      input.autocomplete = 'off';
 
+      const dropdown = document.createElement('div');
+      dropdown.className = 'poke-dropdown';
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        slot.pokemonId = null;
+        input.classList.remove('selected');
+        updateWinner();
+        if (q.length === 0) { dropdown.classList.remove('open'); return; }
+        const matches = ALL_POKEMON_FOR_DUEL.filter(p =>
+          p.name.toLowerCase().includes(q) || String(p.id).includes(q)
+        ).slice(0, 8);
+        if (matches.length === 0) {
+          dropdown.innerHTML = '<div class="poke-dropdown-empty">Kein Pokémon gefunden</div>';
+        } else {
+          dropdown.innerHTML = '';
+          matches.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'poke-dropdown-item';
+            item.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"><span class="poke-num">#${p.id}</span><span>${p.name}</span>`;
+            item.onclick = () => {
+              slot.pokemonId = p.id;
+              input.value = p.name;
+              input.classList.add('selected');
+              dropdown.classList.remove('open');
+              updateWinner();
+            };
+            dropdown.appendChild(item);
+          });
+        }
+        dropdown.classList.add('open');
+      });
+
+      // Dropdown schließen beim Klick außerhalb
+      document.addEventListener('click', e => {
+        if (!wrapper.contains(e.target)) dropdown.classList.remove('open');
+      });
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(dropdown);
+
+      // KO-Button
       const faintBtn = document.createElement('button');
-      faintBtn.className = 'status-btn'; faintBtn.textContent = '💀';
-      faintBtn.title = 'KO markieren';
-      faintBtn.onclick = () => { slot.fainted = !slot.fainted; updateSlotUI(aliveBtn, faintBtn, slot); updateWinner(); };
+      faintBtn.className = 'status-btn alive';
+      faintBtn.textContent = '✅';
+      faintBtn.title = 'Klicken = KO markieren';
+      faintBtn.onclick = () => {
+        slot.fainted = !slot.fainted;
+        faintBtn.className = 'status-btn ' + (slot.fainted ? 'fainted' : 'alive');
+        faintBtn.textContent = slot.fainted ? '💀' : '✅';
+        updateWinner();
+      };
 
-      row.appendChild(sel);
-      row.appendChild(aliveBtn);
+      row.appendChild(wrapper);
       row.appendChild(faintBtn);
       container.appendChild(row);
     }
   }
 
-  function updateSlotUI(aliveBtn, faintBtn, slot) {
-    aliveBtn.className = 'status-btn ' + (slot.fainted ? '' : 'alive');
-    faintBtn.className = 'status-btn ' + (slot.fainted ? 'fainted' : '');
-  }
+  function updateSlotUI(aliveBtn, faintBtn, slot) { /* legacy */ }
 
   function updateWinner() {
     const frSurvivors = frSlots.filter(s => s.pokemonId && !s.fainted).length;

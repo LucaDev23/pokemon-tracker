@@ -47,7 +47,9 @@
 
 <div id="loading-screen"><div class="pokeball-loader"></div></div>
 <div id="toast-container"></div>
+<div class="mobile-header" id="mobile-header"></div>
 <nav class="navbar" id="main-nav"></nav>
+<nav class="mobile-nav" id="mobile-nav"></nav>
 
 <div class="page-wrapper">
   <div class="page-title"><span class="icon">🗺️</span> SPIELFORTSCHRITT</div>
@@ -77,18 +79,18 @@
       </div>
       <div class="form-group">
         <label class="form-label">Stunden</label>
-        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="2">
+        <input type="number" id="pt-hours" class="form-control" min="0" max="999" placeholder="">
       </div>
       <div class="form-group">
         <label class="form-label">Minuten</label>
-        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="24">
+        <input type="number" id="pt-minutes" class="form-control" min="0" max="59" placeholder="">
       </div>
       <button class="btn btn-primary" onclick="savePlaytime()">💾 Speichern</button>
     </div>
 
     <!-- Eingetragene Spielzeiten -->
     <div class="playtime-log" id="playtime-log">
-      <div style="color:var(--text-mid);font-size:13px">Lade Einträge...</div>
+      
     </div>
   </div>
 
@@ -180,7 +182,6 @@
 
   async function earnBadge(index) {
     if (index !== earnedBadges) return; // nur nächster möglich
-    if (!confirm(`"${BADGES[index].name}" erhalten? 🏅`)) return;
     earnedBadges = index + 1;
     await saveBadges();
     renderBadges();
@@ -188,7 +189,6 @@
   }
 
   async function revokeBadge(index) {
-    if (!confirm(`"${BADGES[index].name}" rückgängig machen?`)) return;
     earnedBadges = index;
     await saveBadges();
     renderBadges();
@@ -205,7 +205,23 @@
     const m     = parseInt(document.getElementById('pt-minutes').value) || 0;
     if (!date)  { showToast('Bitte Datum eingeben!', true); return; }
     const total = h * 60 + m;
-    if (total === 0) { showToast('Bitte Spielzeit eingeben!', true); return; }
+    if (total === 0) { showToast('Bitte Spielzeit (Stunden/Minuten) eingeben!', true); return; }
+
+    // Prüfen ob neue Zeit kleiner als vorheriger Eintrag ist
+    const prevSnap = await db.collection('playtime_log')
+      .where('uid', '==', currentUser.uid)
+      .where('date', '<', date)
+      .orderBy('date', 'desc')
+      .limit(1)
+      .get();
+    if (!prevSnap.empty) {
+      const prevMinutes = prevSnap.docs[0].data().minutes;
+      if (total < prevMinutes) {
+        const prevFormatted = formatPlaytime(prevMinutes);
+        showToast(`⚠️ Die Spielzeit (${formatPlaytime(total)}) ist kleiner als der vorherige Eintrag (${prevFormatted}). Bitte die aktuelle Gesamtspielzeit vom Spielstand eingeben.`, true);
+        return;
+      }
+    }
 
     try {
       // Im Log speichern (pro Datum ein Eintrag, wird überschrieben wenn schon vorhanden)
@@ -226,28 +242,38 @@
   }
 
   async function loadPlaytimeLog() {
-    const snap = await db.collection('playtime_log')
-      .where('uid', '==', currentUser.uid)
-      .orderBy('date', 'desc')
-      .limit(15)
-      .get();
-
     const el = document.getElementById('playtime-log');
-    if (snap.empty) {
-      el.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Einträge.</p>';
-      return;
+    el.innerHTML = '<div style="color:var(--text-mid);font-size:13px">Lade...</div>';
+    try {
+      // Einfache Query ohne zusammengesetzten Index
+      const snap = await db.collection('playtime_log')
+        .where('uid', '==', currentUser.uid)
+        .get();
+
+      if (snap.empty) {
+        el.innerHTML = '<p style="color:var(--text-mid);font-size:13px">Noch keine Einträge. Trage oben deine erste Spielzeit ein!</p>';
+        return;
+      }
+
+      // Clientseitig sortieren (vermeidet Firestore-Index-Anforderung)
+      const docs = [];
+      snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => b.date.localeCompare(a.date));
+
+      el.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Deine Einträge (neueste zuerst)</div>';
+      docs.slice(0, 15).forEach(d => {
+        const parts = d.date.split('-');
+        const dateFormatted = parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d.date;
+        el.innerHTML += `
+          <div class="log-entry">
+            <span class="log-date">📅 ${dateFormatted}</span>
+            <span class="log-time">${formatPlaytime(d.minutes)} Std.</span>
+            <span class="log-del" onclick="deletePlaytime('${d.id}')">×</span>
+          </div>`;
+      });
+    } catch(e) {
+      el.innerHTML = `<p style="color:var(--fr-primary);font-size:13px">Fehler beim Laden: ${e.message}</p>`;
     }
-    el.innerHTML = '<div style="font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Deine Einträge</div>';
-    snap.forEach(doc => {
-      const d = doc.data();
-      const dateFormatted = new Date(d.date).toLocaleDateString('de-CH', {day:'2-digit',month:'2-digit',year:'numeric'});
-      el.innerHTML += `
-        <div class="log-entry">
-          <span class="log-date">📅 ${dateFormatted}</span>
-          <span class="log-time">${formatPlaytime(d.minutes)} Std.</span>
-          <span class="log-del" onclick="deletePlaytime('${doc.id}')">×</span>
-        </div>`;
-    });
   }
 
   async function deletePlaytime(docId) {

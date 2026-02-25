@@ -29,6 +29,11 @@
 
     .poke-number { font-size:8px; color:var(--text-mid); font-family:var(--font-pixel); }
     .poke-name   { font-size:10px; font-weight:800; margin-top:2px; line-height:1.3; }
+    .poke-question {
+      width:60px; height:60px; display:flex; align-items:center; justify-content:center;
+      font-size:32px; margin:0 auto; background:#f0e6ff; border-radius:50%;
+      border:2px dashed #9B59B6;
+    }
     .poke-status { display:flex; justify-content:center; gap:3px; margin-top:3px; }
     .status-dot  { width:9px; height:9px; border-radius:50%; border:1.5px solid #ccc; background:white; }
     .status-dot.seen   { background:#FFB900; border-color:#cc9000; }
@@ -84,7 +89,9 @@
 
 <div id="loading-screen"><div class="pokeball-loader"></div></div>
 <div id="toast-container"></div>
+<div class="mobile-header" id="mobile-header"></div>
 <nav class="navbar" id="main-nav"></nav>
+<nav class="mobile-nav" id="mobile-nav"></nav>
 
 <div class="page-wrapper">
   <div class="page-title"><span class="icon">📖</span> POKÉDEX</div>
@@ -230,15 +237,17 @@
     card.className = classes;
 
     const imgSrc = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+    const showImg = !(isPostgame && !unlocked);
 
     card.innerHTML = `
-      ${isPostgame && !unlocked ? '<span class="postgame-lock">🔒</span>' : ''}
       <div class="poke-number">#${String(p.id).padStart(3,'0')}</div>
-      <img src="${imgSrc}" alt="${p.name}" loading="lazy">
-      ${isPostgame && !unlocked ? '<div style="font-size:18px;color:#9B59B6;margin:-8px 0 4px">❓</div>' : ''}
+      ${showImg
+        ? `<img src="${imgSrc}" alt="${p.name}" loading="lazy">`
+        : `<div class="poke-question">❓</div>`
+      }
       <div class="poke-name">${isPostgame && !unlocked ? '???' : p.name}</div>
       ${isPostgame && p.note ? `<div class="postgame-note">${p.note}</div>` : ''}
-      ${!(isPostgame && !unlocked) ? `<div class="poke-status">
+      ${showImg ? `<div class="poke-status">
         <div class="status-dot ${isSeen||isCaught?'seen':''}"></div>
         <div class="status-dot ${isCaught?'caught':''}"></div>
       </div>` : ''}

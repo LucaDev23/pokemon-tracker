@@ -103,7 +103,18 @@ body {
   font-size: 10px;
   color: var(--dark-green);
   text-decoration: none;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--light-green);
+  transition: background 0.2s;
+}
+.navbar-brand:hover { background: var(--mid-green); color: white; }
+.navbar-brand .home-icon { font-size: 16px; }
+.navbar-brand .brand-text { font-size: 9px; }
+@media (max-width: 768px) {
+  .navbar-brand .brand-text { display: none; }
+  .navbar-brand { padding: 8px 12px; gap: 4px; }
 }
 .navbar-brand span.red { color: var(--fr-primary); }
 .navbar-brand span.green { color: var(--bg-primary); }
@@ -130,6 +141,12 @@ body {
 .navbar-user {
   display: flex; align-items: center; gap: 12px;
   font-size: 13px; font-weight: 700;
+}
+.navbar-username {
+  font-size: 13px; font-weight: 700;
+}
+@media (max-width: 768px) {
+  .navbar-username { display: none; }
 }
 .edition-badge {
   padding: 4px 12px;
@@ -305,6 +322,106 @@ select.form-control { cursor: pointer; }
 /* ── Mobile ── */
 @media (max-width: 768px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  .navbar-nav { display: none; }
   .page-wrapper { padding: 20px 16px; }
+
+  /* Mobile Navbar: kompakter, Hamburger-Menü */
+  .navbar {
+    padding: 0 16px;
+    height: 56px;
+  }
+  .navbar-nav {
+    display: none;
+    position: fixed;
+    top: 56px; left: 0; right: 0;
+    background: white;
+    border-bottom: 3px solid var(--light-green);
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 99;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+  .navbar-nav.open { display: flex; }
+  .navbar-nav a {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-radius: var(--radius-sm);
+  }
+  .navbar-user { gap: 8px; }
+  .navbar-user span[style] { display: none; }
+  .edition-badge { font-size: 9px; padding: 3px 8px; }
+
+  /* Hamburger Button */
+  .hamburger-btn {
+    background: none; border: 2px solid var(--light-green);
+    border-radius: var(--radius-sm); padding: 6px 10px;
+    cursor: pointer; font-size: 18px; line-height: 1;
+    color: var(--dark-green);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .hamburger-btn .hb-label { font-size: 11px; font-weight: 800; }
+}
+
+@media (min-width: 769px) {
+  .hamburger-btn { display: none; }
+}
+
+/* ── Mobile Bottom Navigation ── */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-top: 2px solid var(--light-green);
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+  z-index: 200;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+}
+.mobile-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+.mobile-nav-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 6px 2px;
+  border-radius: 10px;
+  text-decoration: none; color: var(--text-mid);
+  font-size: 9px; font-weight: 800;
+  transition: all 0.15s;
+  gap: 3px;
+}
+.mobile-nav-item .mn-icon { font-size: 20px; line-height: 1; }
+.mobile-nav-item.active   { color: var(--dark-green); background: var(--light-green); }
+.mobile-nav-item:active   { transform: scale(0.92); }
+
+/* Sticky header on mobile - simplified */
+.mobile-header {
+  display: none;
+  position: sticky; top: 0; z-index: 100;
+  background: white;
+  border-bottom: 2px solid var(--light-green);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  padding: 0 16px;
+  height: 56px;
+  align-items: center; justify-content: space-between;
+}
+.mobile-header-title {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--dark-green);
+}
+.mobile-header-badge {
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 10px; font-weight: 800;
+}
+.mobile-header-badge.feuerrot  { background: var(--fr-bg);  color: var(--fr-dark);  border: 2px solid var(--fr-secondary); }
+.mobile-header-badge.blattgruen { background: var(--bg-bg); color: var(--bg-dark);  border: 2px solid var(--bg-secondary); }
+
+@media (max-width: 768px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .page-wrapper { padding: 16px 14px 80px; } /* bottom padding for mobile nav */
+  .navbar { display: none; }  /* Hide desktop nav on mobile */
+  .mobile-nav    { display: block; }
+  .mobile-header { display: flex; }
 }
