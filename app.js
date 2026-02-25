@@ -102,7 +102,7 @@ const POKEMON_LIST = [
   {id:16,name:"Taubsi"},{id:17,name:"Tauboga"},{id:18,name:"Tauboss"},
   {id:19,name:"Rattfratz"},{id:20,name:"Rattikarl"},
   {id:21,name:"Habitak"},{id:22,name:"Ibitak"},
-  {id:23,name:"Ekans"},{id:24,name:"Arbok"},
+  {id:23,name:"Rettan"},{id:24,name:"Arbok"},
   {id:25,name:"Pikachu"},{id:26,name:"Raichu"},
   {id:27,name:"Sandan"},{id:28,name:"Sandamer"},
   {id:29,name:"Nidoran♀"},{id:30,name:"Nidorina"},{id:31,name:"Nidoqueen"},
